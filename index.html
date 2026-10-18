@@ -167,6 +167,24 @@ nav.tabs svg{width:20px;height:20px;display:none}
 .cv-row .det{grid-column:2/-1;font-size:.75rem;color:var(--muted);font-family:var(--f-num)}
 .cv-leg{display:flex;gap:14px;font-size:.75rem;color:var(--muted);flex-wrap:wrap}
 .cv-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.mk-head{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;justify-content:space-between}
+.mk-breadth{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.mk-breadth div{background:var(--surface);padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.mk-breadth .k{font-size:.75rem;color:var(--muted)} .mk-breadth .v{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:1.1rem}
+.mk-bar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--sunk)}
+.mk-bar span{display:block;height:100%}
+.mk-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.mk-tools input{max-width:260px}
+.mk-list{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.mk-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px 14px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.mk-row:last-child{border-bottom:0}
+.mk-row.mine{background:var(--accent-soft)}
+.mk-row .nm{min-width:0}
+.mk-row .nm .full{font-weight:600}
+.mk-row .nm small{display:block;color:var(--muted);font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mk-row .px{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;line-height:1.25}
+.mk-row .px .d{font-size:.82rem}
+.chip.mine{background:var(--accent);color:var(--surface)}
 @media (max-width:700px){
   .wrap{padding-block:14px calc(150px + env(safe-area-inset-bottom,0px))}
   h1{font-size:1.45rem}
@@ -185,6 +203,9 @@ nav.tabs svg{width:20px;height:20px;display:none}
   .bar{grid-template-columns:48px 1fr 96px}
   .dbar,.dbar-axis{grid-template-columns:44px minmax(0,1fr) 92px;gap:4px 8px}
   .cv-row{grid-template-columns:44px minmax(0,1fr) 96px;gap:4px 8px}
+  .mk-row{padding:10px 12px;gap:4px 10px}
+  .mk-tools input{max-width:none}
+  nav.tabs button{font-size:.64rem}
   .cv-sum{grid-template-columns:1fr 1fr}
   .cv-sum div:last-child{grid-column:1/-1;flex-direction:row;align-items:baseline;gap:10px}
   input,select{font-size:16px}
@@ -205,6 +226,7 @@ nav.tabs svg{width:20px;height:20px;display:none}
     <button role="tab" data-tab="resumen" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 19V10M10 19V5M16 19v-7M22 19H2"/></svg>Resumen</button>
     <button role="tab" data-tab="movimientos" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></svg>Movimientos</button>
     <button role="tab" data-tab="cartera" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Cartera</button>
+    <button role="tab" data-tab="mercado" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/></svg>Mercado</button>
     <button role="tab" data-tab="fiscal" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7M9 8h3"/></svg>Fiscal</button>
     <button role="tab" data-tab="copia" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Ajustes</button>
   </nav>
@@ -213,6 +235,7 @@ nav.tabs svg{width:20px;height:20px;display:none}
   <section id="v-resumen"></section>
   <section id="v-movimientos" hidden></section>
   <section id="v-cartera" hidden></section>
+  <section id="v-mercado" hidden></section>
   <section id="v-fiscal" hidden></section>
   <section id="v-copia" hidden></section>
 </div>
@@ -222,7 +245,11 @@ nav.tabs svg{width:20px;height:20px;display:none}
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '1.0 · 18/10/2026';
+const APP_VERSION = '1.1 · 18/10/2026';
+const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
+const NOMBRES = Object.fromEntries(IBEX35);
+const nombre = t => NOMBRES[t] || '';
+let mkOrden='az', mkQ='', prefill=null;
 /* ---------- Utilidades ---------- */
 const EUR = new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:'always'});
 const EUR4 = new Intl.NumberFormat('es-ES',{minimumFractionDigits:2,maximumFractionDigits:4});
@@ -497,12 +524,13 @@ function render(){
   const R = calcular(state.movs,state.precios,hoy);
   renderBanner();
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===tab)));
-  ['resumen','movimientos','cartera','fiscal','copia'].forEach(t=>$('v-'+t).hidden = t!==tab);
+  ['resumen','movimientos','cartera','mercado','fiscal','copia'].forEach(t=>$('v-'+t).hidden = t!==tab);
   const vals=[...new Set([...state.movs.map(m=>m.valor),...SUGERENCIAS])];
   $('valores').innerHTML = vals.map(v=>`<option value="${esc(v)}"></option>`).join('');
   if(tab==='resumen') renderResumen(R,hoy);
   if(tab==='movimientos') renderMovs(R);
   if(tab==='cartera') renderCartera(R,hoy);
+  if(tab==='mercado') renderMercado(R,hoy);
   if(tab==='fiscal') renderFiscal(R,hoy);
   if(tab==='copia') renderCopia();
 }
@@ -625,7 +653,7 @@ function renderMovs(R){
   const el=$('v-movimientos');
   const editando = editId? state.movs.find(m=>m.id===editId) : null;
   const t = editando? editando.tipo : tipoForm;
-  const m = editando || {};
+  const m = editando || prefill || {};
   const anios=[...new Set(state.movs.map(x=>x.fecha.slice(0,4)))].sort().reverse();
   const valoresUsados=[...new Set(state.movs.map(x=>x.valor))].sort();
   let lista = R.ord.slice().reverse();
@@ -677,7 +705,7 @@ function renderMovs(R){
       else if(x.tipo==='venta'){imp=x.titulos*x.precio-(x.gastos||0); det=`${NUM.format(x.titulos)} × ${EUR4.format(x.precio)} € · gastos ${eur(x.gastos||0)}`; if(vt) res=`<span class="${cls(vt.gp)}">${sgn(vt.gp)}</span>${vt.noComputable>0.005?' <span class="chip warn">2 meses</span>':''}${vt.faltan?' <span class="chip err">Faltan títulos</span>':''}`;}
       else {imp=(x.bruto||0)-(x.retencion||0); det=`bruto ${eur(x.bruto||0)} · retención ${eur(x.retencion||0)}`;}
       return `<div class="card"${borrarId===x.id?' style="background:var(--loss-soft)"':''}>
-        <div><b>${esc(x.valor)}</b> <span class="chip ${x.tipo}">${x.tipo}</span>${demo?' <span class="chip demo">ej.</span>':''}<div class="meta">${fmtD(x.fecha)}</div></div>
+        <div><b>${esc(x.valor)}</b>${nombre(x.valor)?` <span class="muted" style="font-size:.82rem">${esc(nombre(x.valor))}</span>`:''} <span class="chip ${x.tipo}">${x.tipo}</span>${demo?' <span class="chip demo">ej.</span>':''}<div class="meta">${fmtD(x.fecha)}</div></div>
         <div class="r"><div class="${cls(imp)}">${sgn(imp)}</div>${res?`<div style="font-size:.85rem">${res}</div>`:''}</div>
         <div class="full meta">${det}${x.nota?' · '+esc(x.nota):''}</div>
         <div class="full actions" style="justify-content:flex-end"><button class="btn ghost small" data-ed="${esc(x.id)}">Editar</button><button class="btn ghost small" data-del="${esc(x.id)}">Eliminar</button></div>
@@ -692,7 +720,7 @@ function renderMovs(R){
       else {imp=(x.bruto||0)-(x.retencion||0); res=`<span class="muted">bruto ${eur(x.bruto||0)}</span>`;}
       return `<tr${borrarId===x.id?' style="background:var(--loss-soft)"':''}>
         <td class="n">${fmtD(x.fecha)}</td><td><span class="chip ${x.tipo}">${x.tipo}</span>${demo?' <span class="chip demo">ej.</span>':''}</td>
-        <td><b>${esc(x.valor)}</b>${x.nota?`<div class="muted" style="font-size:.78rem;white-space:normal;max-width:220px">${esc(x.nota)}</div>`:''}</td>
+        <td><b>${esc(x.valor)}</b>${nombre(x.valor)?`<div class="muted" style="font-size:.78rem">${esc(nombre(x.valor))}</div>`:''}${x.nota?`<div class="muted" style="font-size:.78rem;white-space:normal;max-width:220px">${esc(x.nota)}</div>`:''}</td>
         <td class="n">${x.tipo==='dividendo'?'':NUM.format(x.titulos)}</td>
         <td class="n">${x.tipo==='dividendo'?'':EUR4.format(x.precio)}</td>
         <td class="n">${x.tipo==='dividendo'?eur(x.retencion||0)+' ret.':eur(x.gastos||0)}</td>
@@ -742,7 +770,7 @@ function renderMovs(R){
     if(demo) empezarSilencioso();
     if(editando && !demo){Object.assign(state.movs.find(x=>x.id===editId),o);editId=null;toast('Cambios guardados');}
     else {const seq=Math.max(0,...state.movs.map(x=>x.seq||0))+1; state.movs.push(Object.assign({id:uid(),seq},o)); toast(t[0].toUpperCase()+t.slice(1)+' añadida');}
-    editId=null;
+    editId=null; prefill=null;
     guardar(); render();
   };
 }
@@ -760,7 +788,7 @@ function renderCartera(R,hoy){
   ${errPrecios?`<p class="err-msg">${esc(errPrecios)}</p>`:''}
   <p class="note">${ajustes.csvUrl?'Los precios se actualizan solos cada 5 minutos con la app abierta. También puedes escribir uno a mano.':'Escribe el último precio de cada valor y pulsa Intro, o conecta los precios automáticos en Ajustes.'} El coste incluye las comisiones de compra y sigue el criterio FIFO.</p>
   <div class="cards mob">${P.length? P.map(p=>`<div class="card">
-      <div><b>${esc(p.valor)}</b><div class="meta">${NUM.format(p.qty)} tít. · medio ${EUR4.format(p.pm)} €</div><div class="meta">coste ${eur(p.coste)} · ${fmtDays(p.diasMedio)}</div>${varHoy(p.valor)}</div>
+      <div><b>${esc(p.valor)}</b>${nombre(p.valor)?` <span class="muted" style="font-size:.85rem">${esc(nombre(p.valor))}</span>`:''}<div class="meta">${NUM.format(p.qty)} tít. · medio ${EUR4.format(p.pm)} €</div><div class="meta">coste ${eur(p.coste)} · ${fmtDays(p.diasMedio)}</div>${varHoy(p.valor)}</div>
       <div class="r"><div>${isFinite(p.mercado)?eur(p.mercado):'—'}</div><div class="${cls(p.latente)}">${isFinite(p.latente)?sgn(p.latente):'sin precio'}</div><div class="${cls(p.latente)}" style="font-size:.85rem">${isFinite(p.latente)?pct(p.latente/p.coste):''}</div></div>
       <label class="full" style="flex-direction:row;align-items:center;justify-content:space-between;gap:10px;margin-top:4px"><span>Precio actual${p.fechaPrecio?' · '+fmtD(p.fechaPrecio):''}</span><input class="numin priceIn" inputmode="decimal" id="prm-${esc(p.valor)}" data-pr="${esc(p.valor)}" value="${isFinite(p.precio)?String(p.precio).replace('.',','):''}" placeholder="—"></label>
       ${p.divVal?`<div class="full meta">Dividendos cobrados: ${eur(p.divVal)} brutos</div>`:''}
@@ -769,7 +797,7 @@ function renderCartera(R,hoy){
   <div class="tbl desk"><table>
     <thead><tr><th>Valor</th><th class="n">Títulos</th><th class="n">Precio medio</th><th class="n">Coste</th><th class="n">Precio actual</th><th>Fecha precio</th><th class="n">Valor mercado</th><th class="n">Latente €</th><th class="n">Latente %</th><th class="n">Dividendos</th><th class="n">Tiempo medio</th></tr></thead>
     <tbody>${P.length? P.map(p=>`<tr>
-      <td><b>${esc(p.valor)}</b> <span class="muted" style="font-size:.78rem">${p.lotes} lote${p.lotes>1?'s':''}</span>${varHoy(p.valor)}</td>
+      <td><b>${esc(p.valor)}</b>${nombre(p.valor)?`<div style="font-size:.8rem;white-space:normal">${esc(nombre(p.valor))}</div>`:''}<span class="muted" style="font-size:.78rem">${p.lotes} lote${p.lotes>1?'s':''}</span>${varHoy(p.valor)}</td>
       <td class="n">${NUM.format(p.qty)}</td><td class="n">${EUR4.format(p.pm)}</td><td class="n">${eur(p.coste)}</td>
       <td class="n"><input class="numin priceIn" inputmode="decimal" id="pr-${esc(p.valor)}" data-pr="${esc(p.valor)}" value="${isFinite(p.precio)?String(p.precio).replace('.',','):''}" placeholder="—" aria-label="Precio actual de ${esc(p.valor)}"></td>
       <td class="muted">${p.fechaPrecio?fmtD(p.fechaPrecio)+(state.precios[p.valor]&&state.precios[p.valor].h?' '+state.precios[p.valor].h:''):'sin precio'}</td>
@@ -798,6 +826,51 @@ function renderCartera(R,hoy){
   });
 }
 
+function renderMercado(R,hoy){
+  const el=$('v-mercado');
+  const mios=new Set(R.posiciones.map(p=>p.valor));
+  const filas=IBEX35.map(([t,n])=>{const x=state.precios[t];return {t,n,p:x&&x.p>0?x.p:NaN,v:x&&x.v!=null&&isFinite(x.v)?x.v:NaN,f:x?x.f:'',mio:mios.has(t)};});
+  const conPrecio=filas.filter(f=>isFinite(f.p)).length;
+  const conVar=filas.filter(f=>isFinite(f.v));
+  const suben=conVar.filter(f=>f.v>0.0001).length, bajan=conVar.filter(f=>f.v<-0.0001).length, igual=conVar.length-suben-bajan;
+  const media=conVar.length?conVar.reduce((s,f)=>s+f.v,0)/conVar.length:NaN;
+  let lista=filas;
+  if(mkQ){const q=mkQ.toLowerCase();lista=lista.filter(f=>f.t.toLowerCase().includes(q)||f.n.toLowerCase().includes(q));}
+  const cmp={az:(a,b)=>a.n.localeCompare(b.n,'es'),suben:(a,b)=>(isFinite(b.v)?b.v:-1e9)-(isFinite(a.v)?a.v:-1e9),bajan:(a,b)=>(isFinite(a.v)?a.v:1e9)-(isFinite(b.v)?b.v:1e9)}[mkOrden];
+  lista=lista.slice().sort(cmp);
+  const pctV=v=>isFinite(v)?(v>0?'+':'')+NUM.format(Math.round(v*100)/100)+' %':'—';
+  el.innerHTML=`
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <div class="mk-head"><div><h2>IBEX 35</h2><p class="note">${ajustes.ultimaAct?'Precios de las '+new Date(ajustes.ultimaAct).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' · retraso aprox. 15–20 min':'Sin precios todavía'}</p></div><div class="actions">${ajustes.csvUrl?`<button class="btn small" id="mkAct" ${cargandoPrecios||demo?'disabled':''}>${cargandoPrecios?'Actualizando…':'Actualizar precios'}</button>`:`<button class="btn ghost small" id="mkConf">Conectar precios automáticos</button>`}</div></div>
+    ${errPreciosMk()}
+    ${conPrecio?`
+    <div class="panel" style="gap:10px">
+      <div class="mk-breadth">
+        <div><span class="k">Suben</span><span class="v pos">${suben}</span></div>
+        <div><span class="k">Bajan</span><span class="v ${bajan?'neg':''}">${bajan}</span></div>
+        <div><span class="k">Media del día</span><span class="v ${cls(media)}">${pctV(media)}</span></div>
+      </div>
+      ${conVar.length?`<div class="mk-bar" role="img" aria-label="${suben} suben, ${bajan} bajan, ${igual} sin cambios"><span style="width:${(suben/conVar.length*100).toFixed(1)}%;background:var(--gain)"></span><span style="width:${(igual/conVar.length*100).toFixed(1)}%;background:var(--muted)"></span><span style="width:${(bajan/conVar.length*100).toFixed(1)}%;background:var(--loss)"></span></div>`:''}
+      <p class="note">«Media del día» es la media simple de la variación de los 35 valores. No es el índice IBEX 35, que pondera cada empresa por su tamaño; Google no ofrece el índice para hojas de cálculo.</p>
+    </div>`:`<div class="panel empty">Conecta los precios automáticos en <b>Ajustes</b> para ver aquí los 35 valores del IBEX con su precio y variación del día.</div>`}
+    <div class="mk-tools">
+      <input id="mkQ" type="search" placeholder="Buscar valor o empresa" value="${esc(mkQ)}" autocomplete="off">
+      <div class="seg" role="group" aria-label="Ordenar">${[['az','A-Z'],['suben','Más suben'],['bajan','Más bajan']].map(([k,l])=>`<button type="button" data-ord="${k}" aria-pressed="${mkOrden===k}">${l}</button>`).join('')}</div>
+    </div>
+    <div class="mk-list">${lista.length?lista.map(f=>`<div class="mk-row${f.mio?' mine':''}">
+      <div class="nm"><span class="full">${esc(f.n)}</span>${f.mio?' <span class="chip mine">En cartera</span>':''}<small>${esc(f.t)} · BME</small></div>
+      <div class="px"><div>${isFinite(f.p)?EUR4.format(f.p)+' €':'—'}</div><div class="d ${cls(f.v)}">${pctV(f.v)}</div></div>
+      <button class="btn ghost small" data-reg="${esc(f.t)}" aria-label="Registrar operación de ${esc(f.n)}">Registrar</button>
+    </div>`).join(''):'<div class="empty">Ningún valor coincide con la búsqueda.</div>'}</div>
+    <p class="note">Composición del IBEX 35 a octubre de 2026. «Registrar» abre el formulario de movimiento con el valor y el precio actual rellenados. Esta app no compra ni vende: opera en tu bróker y anota aquí la operación.</p>
+  </div>`;
+  const q=$('mkQ'); q.oninput=()=>{mkQ=q.value;const pos=q.selectionStart;render();const n=$('mkQ');if(n){n.focus();try{n.setSelectionRange(pos,pos);}catch(e){}}};
+  el.querySelectorAll('[data-ord]').forEach(b=>b.onclick=()=>{mkOrden=b.dataset.ord;render();});
+  el.querySelectorAll('[data-reg]').forEach(b=>b.onclick=()=>{const t=b.dataset.reg;const x=state.precios[t];prefill={valor:t,precio:x&&x.p>0?x.p:'',fecha:todayStr()};tipoForm='compra';editId=null;borrarId=null;tab='movimientos';render();window.scrollTo({top:0,behavior:'smooth'});});
+  const ma=$('mkAct'); if(ma) ma.onclick=()=>actualizarPrecios(false);
+  const mc=$('mkConf'); if(mc) mc.onclick=()=>{tab='copia';render();};
+}
+function errPreciosMk(){ return (typeof errPrecios!=='undefined' && errPrecios)?`<p class="err-msg">${esc(errPrecios)}</p>`:''; }
 function renderFiscal(R,hoy){
   const el=$('v-fiscal');
   const anios=Object.keys(R.anios).sort().reverse();
@@ -942,8 +1015,8 @@ function renderCopia(){
   };
 }
 
-$('fab').onclick=()=>{tab='movimientos';editId=null;borrarId=null;render();window.scrollTo({top:0,behavior:'smooth'});const f=$('fValor');if(f)f.focus();};
-$('tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(!b)return;tab=b.dataset.tab;editId=null;borrarId=null;render();});
+$('fab').onclick=()=>{tab='movimientos';editId=null;prefill=null;borrarId=null;render();window.scrollTo({top:0,behavior:'smooth'});const f=$('fValor');if(f)f.focus();};
+$('tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(!b)return;tab=b.dataset.tab;editId=null;borrarId=null;prefill=null;render();});
 
 /* Exponer el motor para pruebas */
 window.__cuaderno={calcular,ejemplo,xirr,cuotaAhorro,addMonths};
