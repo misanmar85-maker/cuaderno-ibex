@@ -1,0 +1,955 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cuaderno IBEX</title>
+<meta name="theme-color" content="#1d5c7a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cuaderno IBEX">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+html{-webkit-text-size-adjust:100%}
+:root{padding-top:env(safe-area-inset-top,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+/* Layout: libro de registro de bolsa — cabecera compacta, pestañas, tablas densas con cifras tabulares */
+:root{
+  --bg:#f3f5f6; --surface:#ffffff; --sunk:#e8ecee; --line:#d5dbdf;
+  --fg:#16232b; --muted:#5b6a73; --accent:#1d5c7a; --accent-soft:#dbe8ef;
+  --gain:#17774a; --gain-soft:#dcefe4; --loss:#b3261e; --loss-soft:#f7e0dd;
+  --warn:#8a5a00; --warn-soft:#f6ead0;
+  --f-display:"Bricolage Grotesque", "Public Sans", system-ui, sans-serif;
+  --f-body:"Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10181d; --surface:#172229; --sunk:#0c1317; --line:#2a3842;
+  --fg:#e3eaee; --muted:#93a3ad; --accent:#7fb8d6; --accent-soft:#1d3442;
+  --gain:#5cc58d; --gain-soft:#163627; --loss:#f08a80; --loss-soft:#3b1d1a;
+  --warn:#e3b660; --warn-soft:#382b12; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10181d; --surface:#172229; --sunk:#0c1317; --line:#2a3842;
+  --fg:#e3eaee; --muted:#93a3ad; --accent:#7fb8d6; --accent-soft:#1d3442;
+  --gain:#5cc58d; --gain-soft:#163627; --loss:#f08a80; --loss-soft:#3b1d1a;
+  --warn:#e3b660; --warn-soft:#382b12; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--f-display);font-weight:700;font-size:1.75rem;margin:0;letter-spacing:-.01em}
+h1 small{display:block;font-family:var(--f-body);font-weight:500;font-size:.8rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+h2{font-family:var(--f-display);font-weight:600;font-size:1.15rem;margin:0;text-wrap:balance}
+h3{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0;font-weight:600}
+.num,td.n,th.n{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.pos{color:var(--gain)} .neg{color:var(--loss)}
+.status{font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dot.ok{background:var(--gain)} .dot.busy{background:var(--warn)} .dot.err{background:var(--loss)}
+
+nav.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto}
+nav.tabs button{appearance:none;border:0;background:none;color:var(--muted);font:600 .92rem var(--f-body);padding:10px 14px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+nav.tabs button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.banner{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--line);background:var(--surface);border-radius:6px}
+.banner.demo{background:var(--warn-soft);border-color:transparent}
+.banner p{margin:0;min-width:0;flex:1 1 320px}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.kpi{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.kpi .v{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:1.35rem;font-weight:500;line-height:1.2}
+.kpi .s{font-size:.8rem;color:var(--muted);font-family:var(--f-num)}
+
+dl.rows{display:grid;grid-template-columns:1fr auto;gap:6px 16px;margin:0}
+dl.rows dt{color:var(--muted)} dl.rows dd{margin:0;text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+dl.rows .total{border-top:1px solid var(--line);padding-top:6px;font-weight:600;color:var(--fg)}
+
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--sunk)}
+td.n,th.n{text-align:right}
+tbody tr:last-child td{border-bottom:0}
+tfoot td{font-weight:600;background:var(--sunk);border-bottom:0}
+.chip{display:inline-block;font:600 .7rem var(--f-body);letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:3px}
+.chip.compra{background:var(--accent-soft);color:var(--accent)}
+.chip.venta{background:var(--sunk);color:var(--fg)}
+.chip.dividendo{background:var(--gain-soft);color:var(--gain)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.err{background:var(--loss-soft);color:var(--loss)}
+.chip.demo{background:var(--warn-soft);color:var(--warn)}
+
+form.mov{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px 12px;align-items:end}
+label{display:flex;flex-direction:column;gap:4px;font-size:.78rem;color:var(--muted);font-weight:500}
+input,select{font:400 .95rem var(--f-body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 9px;width:100%;min-width:0}
+input.numin{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.seg{display:flex;border:1px solid var(--line);border-radius:5px;overflow:hidden;width:max-content;max-width:100%}
+.seg button{appearance:none;border:0;background:var(--surface);color:var(--muted);font:600 .85rem var(--f-body);padding:8px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
+.btn{appearance:none;border:1px solid var(--accent);background:var(--accent);color:var(--surface);font:600 .88rem var(--f-body);padding:8px 14px;border-radius:4px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.danger{background:var(--loss);border-color:var(--loss)}
+.btn.small{padding:4px 9px;font-size:.78rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.preview{grid-column:1/-1;font-size:.85rem;color:var(--muted);font-family:var(--f-num)}
+.err-msg{grid-column:1/-1;color:var(--loss);font-size:.85rem}
+.alerts{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.alerts li{padding:10px 12px;border-radius:5px;background:var(--warn-soft);color:var(--fg);font-size:.88rem}
+.alerts li.info{background:var(--sunk)}
+.alerts li b{color:var(--warn)}
+.note{font-size:.82rem;color:var(--muted);max-width:75ch;margin:0}
+.note-list{font-size:.82rem;color:var(--muted);margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;max-width:85ch}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;justify-content:space-between}
+.toolbar .actions label{min-width:140px}
+.priceIn{width:96px;padding:5px 7px;font-size:.85rem}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:5px;font-size:.88rem;max-width:calc(100% - 32px);z-index:20}
+.confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;background:var(--loss-soft);border-radius:5px}
+.bars{display:flex;flex-direction:column;gap:6px}
+.bar{display:grid;grid-template-columns:58px 1fr 110px;gap:10px;align-items:center;font-size:.85rem}
+.bar .track{height:12px;background:var(--sunk);border-radius:2px;overflow:hidden}
+.bar .fill{height:100%;background:var(--accent)}
+.bar .fill.alt{background:var(--muted)}
+.hero{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 24px;padding:18px 18px 16px;background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.hero .big{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:2.3rem;font-weight:500;line-height:1.1;letter-spacing:-.02em}
+.hero .sub{font-family:var(--f-num);font-size:.95rem}
+nav.tabs svg{width:20px;height:20px;display:none}
+.mob{display:none}
+.cards{flex-direction:column;gap:8px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:start}
+.card .r{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.card .full{grid-column:1/-1}
+.card .meta{font-size:.8rem;color:var(--muted);font-family:var(--f-num)}
+.fab{display:none;position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(76px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:var(--surface);font-size:1.9rem;line-height:1;cursor:pointer;z-index:16;box-shadow:0 4px 14px rgba(0,0,0,.25);align-items:center;justify-content:center}
+.gl-sum{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.gl-sum div{background:var(--surface);padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.gl-sum .v{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:1.1rem}
+.gl-sum .k{font-size:.75rem;color:var(--muted)}
+.dbars{display:flex;flex-direction:column;gap:10px}
+.dbar{display:grid;grid-template-columns:52px minmax(0,1fr) 104px;gap:4px 10px;align-items:center;font-size:.85rem}
+.dbar .track{display:grid;grid-template-columns:1fr 1fr;height:14px}
+.dbar .half{display:flex;background:var(--sunk);overflow:hidden}
+.dbar .half.l{justify-content:flex-end;border-right:2px solid var(--fg);border-radius:2px 0 0 2px}
+.dbar .half.r{border-radius:0 2px 2px 0}
+.dbar .fill{height:100%}
+.dbar .fill.g{background:var(--gain)} .dbar .fill.p{background:var(--loss)}
+.dbar .val{text-align:right}
+.dbar .det{grid-column:2/-1;font-size:.75rem;color:var(--muted);font-family:var(--f-num);margin-top:-2px}
+.dbar-axis{display:grid;grid-template-columns:52px minmax(0,1fr) 104px;gap:10px;font-size:.72rem;color:var(--muted)}
+.dbar-axis div{display:flex;justify-content:space-between}
+.cv-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.chip.gan{background:var(--gain-soft);color:var(--gain)} .chip.per{background:var(--loss-soft);color:var(--loss)}
+.cv-sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.cv-sum div{background:var(--surface);padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.cv-sum .k{font-size:.75rem;color:var(--muted)}
+.cv-sum .v{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:1.05rem}
+.cv-sum .s{font-family:var(--f-num);font-size:.8rem}
+.cv-list{display:flex;flex-direction:column;gap:14px}
+.cv-row{display:grid;grid-template-columns:52px minmax(0,1fr) 112px;gap:4px 10px;align-items:center;font-size:.85rem}
+.cv-bars{display:flex;flex-direction:column;gap:3px}
+.cv-bars .t{height:9px;background:var(--sunk);border-radius:2px;overflow:hidden}
+.cv-bars .f{height:100%}
+.cv-bars .f.coste{background:var(--muted)} .cv-bars .f.g{background:var(--gain)} .cv-bars .f.p{background:var(--loss)}
+.cv-row .val{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;line-height:1.3}
+.cv-row .det{grid-column:2/-1;font-size:.75rem;color:var(--muted);font-family:var(--f-num)}
+.cv-leg{display:flex;gap:14px;font-size:.75rem;color:var(--muted);flex-wrap:wrap}
+.cv-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+@media (max-width:700px){
+  .wrap{padding-block:14px calc(150px + env(safe-area-inset-bottom,0px))}
+  h1{font-size:1.45rem}
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:15;background:var(--surface);border-top:1px solid var(--line);border-bottom:0;gap:0;padding-left:max(4px,env(safe-area-inset-left,0px));padding-right:max(4px,env(safe-area-inset-right,0px));padding-bottom:env(safe-area-inset-bottom,0px)}
+  nav.tabs button{flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.7rem;padding:8px 2px 7px;border-bottom:0;border-top:2px solid transparent}
+  nav.tabs button[aria-selected="true"]{border-top-color:var(--accent);color:var(--accent)}
+  nav.tabs svg{display:block}
+  .desk{display:none}
+  .mob{display:flex}
+  .fab{display:flex}
+  .kpis{grid-template-columns:1fr 1fr}
+  .kpi{padding:12px}
+  .kpi .v{font-size:1.1rem}
+  .hero .big{font-size:2rem}
+  .toast{bottom:calc(142px + env(safe-area-inset-bottom,0px))}
+  .bar{grid-template-columns:48px 1fr 96px}
+  .dbar,.dbar-axis{grid-template-columns:44px minmax(0,1fr) 92px;gap:4px 8px}
+  .cv-row{grid-template-columns:44px minmax(0,1fr) 96px;gap:4px 8px}
+  .cv-sum{grid-template-columns:1fr 1fr}
+  .cv-sum div:last-child{grid-column:1/-1;flex-direction:row;align-items:baseline;gap:10px}
+  input,select{font-size:16px}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1><small>Registro privado · Mercado continuo</small>Cuaderno IBEX</h1>
+    <div class="status" id="status"><span class="dot" id="statusDot"></span><span id="statusTxt">Cargando…</span></div>
+  </header>
+
+  <div id="banner"></div>
+
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-tab="resumen" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 19V10M10 19V5M16 19v-7M22 19H2"/></svg>Resumen</button>
+    <button role="tab" data-tab="movimientos" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></svg>Movimientos</button>
+    <button role="tab" data-tab="cartera" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Cartera</button>
+    <button role="tab" data-tab="fiscal" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7M9 8h3"/></svg>Fiscal</button>
+    <button role="tab" data-tab="copia" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Ajustes</button>
+  </nav>
+  <button class="fab" id="fab" aria-label="Añadir movimiento">+</button>
+
+  <section id="v-resumen"></section>
+  <section id="v-movimientos" hidden></section>
+  <section id="v-cartera" hidden></section>
+  <section id="v-fiscal" hidden></section>
+  <section id="v-copia" hidden></section>
+</div>
+<div class="toast" id="toast" hidden></div>
+<datalist id="valores"></datalist>
+
+<script>
+(function(){
+"use strict";
+const APP_VERSION = '1.0 · 18/10/2026';
+/* ---------- Utilidades ---------- */
+const EUR = new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:'always'});
+const EUR4 = new Intl.NumberFormat('es-ES',{minimumFractionDigits:2,maximumFractionDigits:4});
+const NUM = new Intl.NumberFormat('es-ES',{maximumFractionDigits:4});
+const PCT = new Intl.NumberFormat('es-ES',{style:'percent',minimumFractionDigits:2,maximumFractionDigits:2});
+const eur = v => EUR.format(Math.abs(v)<0.005?0:v);
+const sgn = v => (v>0.005?'+':'') + eur(v);
+const pct = v => (isFinite(v)? (v>0?'+':'') + PCT.format(v) : '—');
+const cls = v => v>0.005?'pos':(v<-0.005?'neg':'');
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $ = id => document.getElementById(id);
+const r2 = v => Math.round(v*100)/100;
+const toNum = s => { if(s===''||s==null) return NaN; const t=String(s).trim().replace(/\s/g,''); const n = t.includes(',') ? Number(t.replace(/\./g,'').replace(',','.')) : Number(t); return n; };
+
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function parseD(s){const [y,m,d]=s.split('-').map(Number);return Date.UTC(y,m-1,d);}
+function days(a,b){return Math.round((parseD(b)-parseD(a))/86400000);}
+function addMonths(s,n){const [y,m,d]=s.split('-').map(Number);const t=new Date(Date.UTC(y,m-1+n,1));const last=new Date(Date.UTC(t.getUTCFullYear(),t.getUTCMonth()+1,0)).getUTCDate();t.setUTCDate(Math.min(d,last));return t.toISOString().slice(0,10);}
+function fmtD(s){if(!s)return'';const [y,m,d]=s.split('-');return d+'/'+m+'/'+y;}
+function fmtDays(n){if(!isFinite(n)||n<=0)return '—';const y=Math.floor(n/365),r=n-y*365,mo=Math.round(r/30.44);if(y===0)return mo<1? Math.round(n)+' días' : mo+' meses';return y+' a '+mo+' m';}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+
+const SUGERENCIAS = ['SAN','BBVA','ITX','IBE','TEF','REP','CABK','AENA','AMS','FER','ACS','ELE','NTGY','RED','CLNX','IAG','GRF','MAP','SAB','BKT','UNI','ENG','MRL','ACX','FDR','IDR','SCYR','COL','LOG','ROVI','SLR','ANA','ANE','MTS','PUIG'];
+
+/* Escala del ahorro, territorio común, desde 1/1/2025 (Ley 7/2024). Estatal + autonómica. */
+const ESCALA_AHORRO = [[6000,.19],[50000,.21],[200000,.23],[300000,.27],[Infinity,.30]];
+function cuotaAhorro(base){if(base<=0)return 0;let prev=0,c=0;for(const [lim,t] of ESCALA_AHORRO){if(base>prev){c+=(Math.min(base,lim)-prev)*t;prev=lim;}else break;}return c;}
+
+/* ---------- Datos de ejemplo (no son cotizaciones reales) ---------- */
+function ejemplo(){
+  let s=0; const m=(o)=>Object.assign({id:'ej'+(++s),seq:s,isin:'',gastos:0,bruto:0,retencion:0,nota:''},o);
+  return {
+    movs:[
+      m({tipo:'compra',fecha:'2025-02-10',valor:'SAN',titulos:1000,precio:4.40,gastos:8}),
+      m({tipo:'compra',fecha:'2025-04-03',valor:'ITX',titulos:60,precio:49.50,gastos:7}),
+      m({tipo:'compra',fecha:'2025-06-16',valor:'SAN',titulos:500,precio:5.10,gastos:6}),
+      m({tipo:'compra',fecha:'2025-09-01',valor:'IBE',titulos:200,precio:16.20,gastos:6}),
+      m({tipo:'dividendo',fecha:'2025-11-04',valor:'SAN',bruto:115.00,retencion:21.85}),
+      m({tipo:'dividendo',fecha:'2025-11-03',valor:'ITX',bruto:46.20,retencion:8.78}),
+      m({tipo:'venta',fecha:'2025-11-20',valor:'ITX',titulos:60,precio:44.10,gastos:7}),
+      m({tipo:'compra',fecha:'2025-12-15',valor:'ITX',titulos:40,precio:45.00,gastos:6}),
+      m({tipo:'dividendo',fecha:'2026-01-30',valor:'IBE',bruto:46.00,retencion:8.74}),
+      m({tipo:'venta',fecha:'2026-03-12',valor:'SAN',titulos:1200,precio:6.80,gastos:9}),
+      m({tipo:'dividendo',fecha:'2026-05-04',valor:'SAN',bruto:34.50,retencion:6.56}),
+    ],
+    precios:{SAN:{p:7.20,f:'2026-10-16'},ITX:{p:47.80,f:'2026-10-16'},IBE:{p:17.90,f:'2026-10-16'}}
+  };
+}
+
+/* ---------- Motor de cálculo ---------- */
+function ordenar(movs){return movs.slice().sort((a,b)=> a.fecha<b.fecha?-1:a.fecha>b.fecha?1:(a.seq||0)-(b.seq||0));}
+
+function calcular(movs, precios, hoy){
+  const ord = ordenar(movs);
+  const lotes = {}; // valor -> [{fecha,qty,cpu}]
+  const ventas = [], divs = [], errores = [];
+  const comprasPorValor = {};
+  let comisiones = 0;
+  ord.forEach((mv,idx)=>{ if(mv.tipo==='compra'){(comprasPorValor[mv.valor]=comprasPorValor[mv.valor]||[]).push({fecha:mv.fecha,qty:mv.titulos,idx});} });
+
+  ord.forEach((mv,idx)=>{
+    const L = lotes[mv.valor] = lotes[mv.valor]||[];
+    if(mv.tipo==='compra'){
+      const coste = mv.titulos*mv.precio + (mv.gastos||0);
+      comisiones += (mv.gastos||0);
+      L.push({fecha:mv.fecha,qty:mv.titulos,cpu:coste/mv.titulos,orig:mv.titulos});
+    } else if(mv.tipo==='venta'){
+      comisiones += (mv.gastos||0);
+      let rest = mv.titulos, adq = 0, peso = 0; const usados=[];
+      while(rest>1e-9 && L.length){
+        const l=L[0]; const q=Math.min(rest,l.qty);
+        adq += q*l.cpu; peso += q*l.cpu*days(l.fecha,mv.fecha);
+        usados.push({fecha:l.fecha,qty:q,cpu:l.cpu});
+        l.qty-=q; rest-=q; if(l.qty<=1e-9) L.shift();
+      }
+      const vendidas = mv.titulos-rest;
+      const transm = vendidas*mv.precio - (mv.gastos||0)*(mv.titulos? vendidas/mv.titulos:1);
+      const gp = transm-adq;
+      const saldoTras = L.reduce((s,l)=>s+l.qty,0);
+      const v = {mov:mv,idx,valor:mv.valor,fecha:mv.fecha,qty:vendidas,transm,adq,gp,usados,
+        diasMedio: adq>0? peso/adq : 0, saldoTras, faltan:rest>1e-9?rest:0,
+        noComputable:0, recompra:0, ventanaHasta:addMonths(mv.fecha,2), ventanaAbierta:false};
+      if(v.faltan) errores.push(`Venta de ${mv.valor} del ${fmtD(mv.fecha)}: vendes ${NUM.format(mv.titulos)} títulos pero solo tenías ${NUM.format(vendidas)} registrados.`);
+      ventas.push(v);
+    } else if(mv.tipo==='dividendo'){
+      divs.push({mov:mv,valor:mv.valor,fecha:mv.fecha,bruto:mv.bruto||0,ret:mv.retencion||0,neto:(mv.bruto||0)-(mv.retencion||0)});
+    }
+  });
+
+  /* Regla de los dos meses (art. 33.5.f LIRPF), procedimiento DGT V0248-18 */
+  ventas.forEach(v=>{
+    if(v.gp >= -0.005 || v.qty<=0) return;
+    const desde = addMonths(v.fecha,-2), hasta = v.ventanaHasta;
+    const compras = comprasPorValor[v.valor]||[];
+    let antes=0, despues=0;
+    compras.forEach(c=>{
+      if(c.idx<v.idx && c.fecha>=desde) antes+=c.qty;
+      else if(c.idx>v.idx && c.fecha<=hasta) despues+=c.qty;
+    });
+    const recAntes = Math.min(antes, v.saldoTras);
+    const rec = Math.min(v.qty, recAntes + despues);
+    v.recompra = rec;
+    v.noComputable = -v.gp * (rec/v.qty);
+    v.ventanaAbierta = hasta >= hoy;
+  });
+
+  /* Posiciones abiertas */
+  const posiciones = [];
+  Object.keys(lotes).sort().forEach(val=>{
+    const L=lotes[val]; const qty=L.reduce((s,l)=>s+l.qty,0); if(qty<=1e-9) return;
+    const coste=L.reduce((s,l)=>s+l.qty*l.cpu,0);
+    const pe = precios[val]; const precio = pe? pe.p : NaN;
+    const mercado = isFinite(precio)? qty*precio : NaN;
+    const diasMedio = L.reduce((s,l)=>s+l.qty*l.cpu*days(l.fecha,hoy),0)/coste;
+    const divVal = divs.filter(d=>d.valor===val).reduce((s,d)=>s+d.bruto,0);
+    posiciones.push({valor:val,qty,coste,pm:coste/qty,precio,fechaPrecio:pe?pe.f:'',mercado,latente:mercado-coste,diasMedio,lotes:L.length,divVal});
+  });
+
+  /* Agregados */
+  const realizado = ventas.reduce((s,v)=>s+v.gp,0);
+  const latente = posiciones.reduce((s,p)=>s+(isFinite(p.latente)?p.latente:0),0);
+  const sinPrecio = posiciones.filter(p=>!isFinite(p.precio)).map(p=>p.valor);
+  const divBruto = divs.reduce((s,d)=>s+d.bruto,0), divRet = divs.reduce((s,d)=>s+d.ret,0);
+  const totalCompras = ord.filter(m=>m.tipo==='compra').reduce((s,m)=>s+m.titulos*m.precio+(m.gastos||0),0);
+  const costeVendido = ventas.reduce((s,v)=>s+v.adq,0);
+  const costeVivo = posiciones.reduce((s,p)=>s+p.coste,0);
+  const mercado = posiciones.reduce((s,p)=>s+(isFinite(p.mercado)?p.mercado:p.coste),0);
+  const total = realizado + latente + divBruto;
+
+  /* Periodo medio invertido (ponderado por coste): lotes cerrados hasta la venta, abiertos hasta hoy */
+  let pesoD=0, pesoC=0;
+  ventas.forEach(v=>{ v.usados.forEach(u=>{pesoD+=u.qty*u.cpu*days(u.fecha,v.fecha); pesoC+=u.qty*u.cpu;}); });
+  posiciones.forEach(p=>{ pesoD+=p.diasMedio*p.coste; pesoC+=p.coste; });
+  const diasMedio = pesoC>0? pesoD/pesoC : 0;
+
+  /* Capital medio comprometido = coste·días / días del periodo */
+  const primera = ord.length? ord[0].fecha : hoy;
+  const span = Math.max(1, days(primera, hoy));
+  const capitalMedio = pesoD/span;
+
+  /* TIR (XIRR) de flujos: compras −, ventas +, dividendos brutos +, valor actual + */
+  const flujos=[];
+  ord.forEach(m=>{
+    if(m.tipo==='compra') flujos.push([m.fecha,-(m.titulos*m.precio+(m.gastos||0))]);
+    else if(m.tipo==='venta') flujos.push([m.fecha,m.titulos*m.precio-(m.gastos||0)]);
+    else if(m.tipo==='dividendo') flujos.push([m.fecha,m.bruto||0]);
+  });
+  if(mercado>0) flujos.push([hoy,mercado]);
+  const tir = xirr(flujos);
+
+  /* Por año fiscal */
+  const anios = {};
+  const A = y => anios[y] = anios[y] || {anio:y,ventas:[],divs:[],gan:0,per:0,noComp:0,divBruto:0,divRet:0};
+  ventas.forEach(v=>{const a=A(v.fecha.slice(0,4)); a.ventas.push(v); if(v.gp>=0) a.gan+=v.gp; else {a.per+=v.gp+v.noComputable; a.noComp+=v.noComputable;}});
+  divs.forEach(d=>{const a=A(d.fecha.slice(0,4)); a.divs.push(d); a.divBruto+=d.bruto; a.divRet+=d.ret;});
+  /* Arrastre de saldos negativos de G/P de los 4 ejercicios anteriores (art. 49 LIRPF), del más antiguo al más reciente */
+  let arrastre = []; // [{anio, importe}]
+  Object.keys(anios).sort().forEach(y=>{
+    const a=anios[y];
+    arrastre = arrastre.filter(x=>Number(y)-Number(x.anio)<=4 && x.importe>0.005);
+    a.saldoGP = a.gan + a.per;
+    let gp=a.saldoGP, rcm=a.divBruto, compensa=0, arrUsado=0;
+    // 1) Pérdidas de años anteriores contra el saldo positivo de G/P
+    for(const x of arrastre){ if(gp<=0) break; const u=Math.min(x.importe,gp); x.importe-=u; gp-=u; arrUsado+=u; }
+    // 2) Pérdidas de años anteriores contra hasta el 25 % de los dividendos
+    let limite=.25*rcm;
+    for(const x of arrastre){ if(limite<=0) break; const u=Math.min(x.importe,limite); x.importe-=u; limite-=u; rcm-=u; arrUsado+=u; }
+    // 3) Saldo negativo del propio año contra el 25 % restante de dividendos
+    let pendiente=0;
+    if(gp<0){ compensa=Math.min(-gp, Math.max(0,limite)); rcm-=compensa; pendiente=-gp-compensa; gp=0; }
+    a.arrUsado=arrUsado; a.compensa=compensa; a.pendiente=pendiente;
+    a.base=Math.max(0,gp)+rcm; a.cuota=cuotaAhorro(a.base); a.resultado=a.cuota-a.divRet;
+    arrastre = arrastre.filter(x=>x.importe>0.005);
+    if(pendiente>0.005) arrastre.push({anio:y,importe:pendiente});
+    a.arrastreSiguiente = arrastre.reduce((s,x)=>s+x.importe,0);
+  });
+
+  return {ord,ventas,divs,posiciones,errores,realizado,latente,sinPrecio,divBruto,divRet,totalCompras,costeVendido,costeVivo,mercado,total,diasMedio,capitalMedio,tir,anios,comisiones,primera};
+}
+
+function xirr(fl){
+  if(fl.length<2) return NaN;
+  if(!fl.some(f=>f[1]<0)||!fl.some(f=>f[1]>0)) return NaN;
+  const t0=parseD(fl[0][0]);
+  const ts=fl.map(f=>(parseD(f[0])-t0)/(365*86400000));
+  if(Math.max(...ts)<1/365) return NaN;
+  const f=r=>fl.reduce((s,x,i)=>s+x[1]/Math.pow(1+r,ts[i]),0);
+  let lo=-0.9999, hi=10, flo=f(lo), fhi=f(hi);
+  if(flo*fhi>0) return NaN;
+  for(let i=0;i<200;i++){const mid=(lo+hi)/2,fm=f(mid);if(Math.abs(fm)<1e-7)return mid;if(flo*fm<0){hi=mid;fhi=fm;}else{lo=mid;flo=fm;}}
+  return (lo+hi)/2;
+}
+
+/* ---------- Estado y almacenamiento ---------- */
+let state = {movs:[],precios:{}};
+let demo = false, modo = 'cargando';
+let ajustes = {csvUrl:'', ultimaCopia:'', ultimaAct:''};
+const AJKEY='cuaderno-ibex-ajustes';
+let cargandoPrecios=false, errPrecios='';
+let tab='resumen', filtroValor='', filtroAnio='', anioFiscal='', editId=null, borrarId=null, tipoForm='compra';
+const LSKEY='cuaderno-ibex-v1';
+
+function setStatus(kind,txt){$('statusDot').className='dot '+kind;$('statusTxt').textContent=txt;}
+let toastT; function toast(t){const el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,3200);}
+
+function guardar(){
+  if(demo) return;
+  try{localStorage.setItem(LSKEY,JSON.stringify(state));setStatus('ok','Guardado en este dispositivo');}
+  catch(e){setStatus('err','No se pudo guardar');toast('No se pudo guardar en este dispositivo. Haz una copia desde Ajustes.');}
+}
+function guardarAjustes(){try{localStorage.setItem(AJKEY,JSON.stringify(ajustes));}catch(e){}}
+
+async function iniciar(){
+  modo='local';
+  try{ajustes=Object.assign(ajustes,JSON.parse(localStorage.getItem(AJKEY)||'{}'));}catch(e){}
+  let d=null; try{ d=JSON.parse(localStorage.getItem(LSKEY)||'null'); }catch(e){}
+  if(d && Array.isArray(d.movs) && d.movs.length){state={movs:d.movs,precios:d.precios||{}};demo=false;setStatus('ok','Guardado en este dispositivo');}
+  else {state=ejemplo();demo=true;setStatus('','Datos de ejemplo');}
+  try{ if(navigator.storage&&navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
+  render();
+  if(ajustes.csvUrl && !demo) actualizarPrecios(true);
+  setInterval(()=>{ if(ajustes.csvUrl && !demo && document.visibilityState==='visible') actualizarPrecios(true); }, 5*60*1000);
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && ajustes.csvUrl && !demo){ const h=ajustes.ultimaAct?Date.now()-Date.parse(ajustes.ultimaAct):Infinity; if(h>4*60*1000) actualizarPrecios(true);} });
+}
+
+/* ---------- Precios desde una hoja de Google publicada como CSV ---------- */
+function parseCSV(t){
+  const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(q){ if(c==='"'){ if(t[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===','||c===';'||c==='\t'){row.push(f);f='';}
+    else if(c==='\n'){row.push(f);rows.push(row);row=[];f='';}
+    else if(c!=='\r') f+=c;
+  }
+  if(f!==''||row.length){row.push(f);rows.push(row);}
+  return rows;
+}
+function numCSV(s){ if(s==null) return NaN; let t=String(s).trim().replace(/[€%\s]/g,''); if(!t) return NaN;
+  if(t.includes(',')&&t.includes('.')){ t = t.lastIndexOf(',')>t.lastIndexOf('.') ? t.replace(/\./g,'').replace(',','.') : t.replace(/,/g,''); }
+  else if(t.includes(',')) t=t.replace(',','.');
+  return Number(t); }
+async function actualizarPrecios(silencioso){
+  if(!ajustes.csvUrl || cargandoPrecios) return;
+  cargandoPrecios=true; errPrecios=''; if(!silencioso) render();
+  try{
+    const r=await fetch(ajustes.csvUrl+(ajustes.csvUrl.includes('?')?'&':'?')+'_='+Date.now(),{cache:'no-store'});
+    if(!r.ok) throw new Error('La hoja respondió con error '+r.status+'.');
+    const filas=parseCSV(await r.text());
+    const hoy=todayStr(), hora=new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+    let n=0;
+    filas.forEach(f=>{
+      const t=(f[0]||'').trim().toUpperCase().replace(/^BME:/,''); const p=numCSV(f[1]); const v=numCSV(f[2]);
+      if(!t || !(p>0)) return;
+      state.precios[t]={p,f:hoy,h:hora,v:isFinite(v)?v:null}; n++;
+    });
+    if(!n) throw new Error('No se encontró ningún precio. Revisa que la columna A tenga el valor y la B el precio.');
+    ajustes.ultimaAct=new Date().toISOString(); guardarAjustes(); guardar();
+    if(!silencioso) toast(n+' precios actualizados');
+  }catch(e){
+    errPrecios = (e && e.name==='TypeError') ? 'No se pudo conectar con la hoja. Comprueba la conexión y que el enlace sea el de "Publicar en la web" en formato CSV.' : (e.message||'Error al leer la hoja.');
+    if(!silencioso) toast('No se pudieron actualizar los precios');
+  }
+  cargandoPrecios=false; render();
+}
+
+function empezar(){ state={movs:[],precios:{}}; demo=false; guardar(); render(); toast('Ejemplos eliminados. Ya puedes registrar tus movimientos.'); if(ajustes.csvUrl) actualizarPrecios(true); }
+
+/* ---------- Render ---------- */
+function render(){
+  const hoy=todayStr();
+  const R = calcular(state.movs,state.precios,hoy);
+  renderBanner();
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===tab)));
+  ['resumen','movimientos','cartera','fiscal','copia'].forEach(t=>$('v-'+t).hidden = t!==tab);
+  const vals=[...new Set([...state.movs.map(m=>m.valor),...SUGERENCIAS])];
+  $('valores').innerHTML = vals.map(v=>`<option value="${esc(v)}"></option>`).join('');
+  if(tab==='resumen') renderResumen(R,hoy);
+  if(tab==='movimientos') renderMovs(R);
+  if(tab==='cartera') renderCartera(R,hoy);
+  if(tab==='fiscal') renderFiscal(R,hoy);
+  if(tab==='copia') renderCopia();
+}
+
+function renderBanner(){
+  const b=$('banner');
+  if(modo==='cargando'){b.innerHTML='';return;}
+  if(demo){
+    b.innerHTML=`<div class="banner demo"><p><span class="chip demo">Ejemplo</span> Estás viendo una cartera inventada para que veas cómo funciona. Sus precios no son cotizaciones reales. Al registrar tu primer movimiento, los ejemplos se borran. Si ya usabas la versión de Claude, restaura tu copia desde Ajustes.</p><button class="btn" id="bEmpezar">Empezar con mi cartera</button></div>`;
+    $('bEmpezar').onclick=empezar;
+  } else {
+    const dias = ajustes.ultimaCopia? days(ajustes.ultimaCopia.slice(0,10),todayStr()) : Infinity;
+    b.innerHTML = (state.movs.length && dias>30) ? `<div class="banner"><p>${ajustes.ultimaCopia?'Tu última copia de seguridad es de hace '+dias+' días.':'Aún no has hecho ninguna copia de seguridad.'} Tus datos solo están en este dispositivo.</p><button class="btn ghost" id="bCopia">Hacer copia</button></div>` : '';
+    const bc=$('bCopia'); if(bc) bc.onclick=()=>{tab='copia';render();};
+  }
+}
+
+function kpi(t,v,s,c){return `<div class="kpi"><h3>${t}</h3><div class="v ${c||''}">${v}</div>${s?`<div class="s">${s}</div>`:''}</div>`;}
+
+function renderResumen(R,hoy){
+  const el=$('v-resumen');
+  if(!state.movs.length){el.innerHTML=`<div class="panel empty">Aún no hay movimientos. Ve a <b>Movimientos</b> y registra tu primera compra.</div>`;return;}
+  const pctTotal = R.totalCompras>0? R.total/R.totalCompras : NaN;
+  const pctCapMedio = R.capitalMedio>0? R.total/R.capitalMedio : NaN;
+  const alerts=[];
+  R.errores.forEach(e=>alerts.push(`<li><b>Revisa:</b> ${esc(e)}</li>`));
+  R.ventas.filter(v=>v.noComputable>0.005).forEach(v=>alerts.push(`<li><b>Regla de los dos meses · ${esc(v.valor)}</b> — venta con pérdida del ${fmtD(v.fecha)}: ${NUM.format(v.recompra)} de ${NUM.format(v.qty)} títulos se consideran recomprados. ${eur(v.noComputable)} de pérdida no se pueden computar ahora; se integrarán cuando vendas esos títulos.</li>`));
+  R.ventas.filter(v=>v.gp<-0.005 && v.ventanaAbierta && v.noComputable < -v.gp-0.005).forEach(v=>alerts.push(`<li><b>Ventana abierta · ${esc(v.valor)}</b> — si compras ${esc(v.valor)} antes del ${fmtD(v.ventanaHasta)}, parte de la pérdida del ${fmtD(v.fecha)} (${eur(-v.gp)}) dejará de ser computable este año.</li>`));
+  const viejos = R.posiciones.filter(p=>p.fechaPrecio && days(p.fechaPrecio,hoy)>7).map(p=>p.valor);
+  if(R.sinPrecio.length) alerts.push(`<li class="info">Sin precio actual para ${R.sinPrecio.map(esc).join(', ')}: se valora a coste. Actualízalo en <b>Cartera</b> o conecta los precios automáticos en <b>Ajustes</b>.</li>`);
+  if(viejos.length) alerts.push(`<li class="info">Precios con más de una semana: ${viejos.map(esc).join(', ')}.</li>`);
+
+  const porValor = {};
+  const pv = v => porValor[v] = porValor[v] || {r:0,l:0,d:0,abierta:false};
+  R.ventas.forEach(v=>{pv(v.valor).r+=v.gp;});
+  R.posiciones.forEach(p=>{const o=pv(p.valor);o.abierta=true;o.l+=(isFinite(p.latente)?p.latente:0);});
+  R.divs.forEach(d=>{pv(d.valor).d+=d.bruto;});
+  const filas = Object.entries(porValor).map(([v,o])=>[v,o.r+o.l+o.d,o]).sort((a,b)=>b[1]-a[1]);
+  const maxAbs = Math.max(1,...filas.map(f=>Math.abs(f[1])));
+  const P = R.posiciones, Pp = P.filter(p=>isFinite(p.mercado));
+  const cvCoste = Pp.reduce((s,p)=>s+p.coste,0), cvValor = Pp.reduce((s,p)=>s+p.mercado,0), cvLat = cvValor-cvCoste;
+  const cvMax = Math.max(1,...P.map(p=>Math.max(p.coste, isFinite(p.mercado)?p.mercado:0)));
+  const recup = p => { if(!isFinite(p.precio)) return 'sin precio actual: introdúcelo en Cartera';
+    const base = 'precio medio '+eur(p.pm)+' · actual '+eur(p.precio);
+    return p.precio < p.pm ? base+' · necesita subir '+pct(p.pm/p.precio-1).replace('+','')+' para recuperar' : base+' · margen '+pct(1-p.pm/p.precio).replace('+','')+' sobre tu precio medio'; };
+  const cartActual = !P.length ? `<div class="panel"><h2>Cartera actual</h2><p class="note">No tienes posiciones abiertas ahora mismo.</p></div>` : `
+  <div class="panel">
+    <div class="cv-head"><h2>Cartera actual</h2>${Pp.length?`<span class="chip ${cvLat>=0?'gan':'per'}">${cvLat>=0?'En beneficio':'En pérdida'}</span>`:''}</div>
+    <div class="cv-sum">
+      <div><span class="k">Pagaste</span><span class="v">${eur(cvCoste)}</span><span class="s muted">con comisiones</span></div>
+      <div><span class="k">Vale hoy</span><span class="v">${eur(cvValor)}</span><span class="s muted">${P.length} valor${P.length===1?'':'es'}</span></div>
+      <div><span class="k">${cvLat>=0?'Ganas':'Pierdes'}</span><span class="v ${cls(cvLat)}">${sgn(cvLat)}</span><span class="s ${cls(cvLat)}">${cvCoste?pct(cvLat/cvCoste):'—'}</span></div>
+    </div>
+    <div class="cv-leg" aria-hidden="true"><span><i style="background:var(--muted)"></i>Lo que pagaste</span><span><i style="background:var(--gain)"></i>Vale hoy (beneficio)</span><span><i style="background:var(--loss)"></i>Vale hoy (pérdida)</span></div>
+    <div class="cv-list">${P.map(p=>{const ok=isFinite(p.mercado);return `<div class="cv-row">
+      <span class="num"><b>${esc(p.valor)}</b></span>
+      <div class="cv-bars" role="img" aria-label="${esc(p.valor)}: pagaste ${eur(p.coste)}, vale ${ok?eur(p.mercado):'sin precio'}"><div class="t"><div class="f coste" style="width:${(p.coste/cvMax*100).toFixed(1)}%"></div></div><div class="t">${ok?`<div class="f ${p.latente>=0?'g':'p'}" style="width:${(p.mercado/cvMax*100).toFixed(1)}%"></div>`:''}</div></div>
+      <span class="val ${cls(p.latente)}">${ok?sgn(p.latente)+'<br>'+pct(p.latente/p.coste):'—'}</span>
+      <span class="det">${recup(p)}${p.fechaPrecio?' · precio del '+fmtD(p.fechaPrecio):''}</span></div>`;}).join('')}</div>
+    ${R.sinPrecio.length?`<p class="note">Sin precio: ${R.sinPrecio.map(esc).join(', ')}. No se incluye${R.sinPrecio.length>1?'n':''} en el total.</p>`:''}
+  </div>`;
+  const ganan = filas.filter(f=>f[1]>0.005), pierden = filas.filter(f=>f[1]<-0.005);
+  const totG = ganan.reduce((s,f)=>s+f[1],0), totP = pierden.reduce((s,f)=>s+f[1],0);
+  const detalle = o => [Math.abs(o.r)>0.005?'ventas '+sgn(o.r):'', Math.abs(o.l)>0.005||o.abierta?'latente '+sgn(o.l):'', o.d>0.005?'dividendos '+sgn(o.d):''].filter(Boolean).join(' · ');
+
+  el.innerHTML = `
+  <div style="display:flex;flex-direction:column;gap:16px">
+  <div class="hero">
+    <div><h3>Valor de la cartera</h3><div class="big">${eur(R.mercado)}</div><div class="muted" style="font-size:.8rem">${R.sinPrecio.length? 'algunos valores a coste, sin precio':'con los precios que has introducido'}</div></div>
+    <div style="text-align:right"><h3>Beneficio total</h3><div class="sub ${cls(R.total)}" style="font-size:1.25rem">${sgn(R.total)}</div><div class="sub ${cls(R.total)}">${pct(pctTotal)} s/ compras</div></div>
+  </div>
+  <div class="kpis">
+    ${kpi('Latente', sgn(R.latente), R.costeVivo? pct(R.latente/R.costeVivo)+' s/ coste vivo':'', cls(R.latente))}
+    ${kpi('Realizado', sgn(R.realizado), 'ventas cerradas', cls(R.realizado))}
+    ${kpi('Rentab. s/ capital medio', pct(pctCapMedio), 'capital medio '+eur(R.capitalMedio), cls(R.total))}
+    ${kpi('TIR anualizada', isFinite(R.tir)? pct(R.tir):'—', 'con flujos y fechas reales', cls(R.tir))}
+    ${kpi('Periodo medio invertido', fmtDays(R.diasMedio), Math.round(R.diasMedio)+' días, ponderado por coste')}
+    ${kpi('Dividendos netos', eur(R.divBruto-R.divRet), 'brutos '+eur(R.divBruto))}
+  </div>
+  ${alerts.length?`<ul class="alerts">${alerts.join('')}</ul>`:''}
+  ${cartActual}
+  <div class="grid2">
+    <div class="panel">
+      <h2>De dónde sale el beneficio</h2>
+      <dl class="rows">
+        <dt>Ganancias y pérdidas realizadas (ventas)</dt><dd class="${cls(R.realizado)}">${sgn(R.realizado)}</dd>
+        <dt>Plusvalía latente (cartera viva)</dt><dd class="${cls(R.latente)}">${sgn(R.latente)}</dd>
+        <dt>Dividendos brutos cobrados</dt><dd class="${cls(R.divBruto)}">${sgn(R.divBruto)}</dd>
+        <dt class="total">Beneficio total antes de impuestos</dt><dd class="total ${cls(R.total)}">${sgn(R.total)}</dd>
+        <dt>Retenciones soportadas en dividendos</dt><dd>${eur(R.divRet)}</dd>
+        <dt>Comisiones pagadas (ya descontadas arriba)</dt><dd>${eur(R.comisiones)}</dd>
+        <dt>Total invertido en compras</dt><dd>${eur(R.totalCompras)}</dd>
+        <dt>Coste de lo que sigues teniendo</dt><dd>${eur(R.costeVivo)}</dd>
+      </dl>
+    </div>
+    <div class="panel">
+      <h2>Ganancias y pérdidas por valor</h2>
+      <div class="gl-sum">
+        <div><span class="k">Ganancias · ${ganan.length} valor${ganan.length===1?'':'es'}</span><span class="v pos">${sgn(totG)}</span></div>
+        <div><span class="k">Pérdidas · ${pierden.length} valor${pierden.length===1?'':'es'}</span><span class="v ${totP<-0.005?'neg':''}">${totP<-0.005?sgn(totP):eur(0)}</span></div>
+      </div>
+      <div class="dbar-axis" aria-hidden="true"><span></span><div><span>← pérdida</span><span>0</span><span>ganancia →</span></div><span></span></div>
+      <div class="dbars">${filas.map(([v,x,o])=>{const w=(Math.abs(x)/maxAbs*100).toFixed(1);return `<div class="dbar"><span class="num"><b>${esc(v)}</b></span><div class="track" role="img" aria-label="${esc(v)}: ${sgn(x)}"><div class="half l">${x<0?`<div class="fill p" style="width:${w}%"></div>`:''}</div><div class="half r">${x>0?`<div class="fill g" style="width:${w}%"></div>`:''}</div></div><span class="num val ${cls(x)}">${sgn(x)}</span><span class="det">${detalle(o)}</span></div>`;}).join('')}</div>
+      <p class="note">Resultado de cada valor sumando ventas cerradas, plusvalía o minusvalía latente de lo que sigues teniendo y dividendos brutos. Neto de todos: <b class="${cls(totG+totP)}">${sgn(totG+totP)}</b>.</p>
+    </div>
+  </div>
+  <details class="panel"><summary><b>Cómo se calcula cada cifra</b></summary>
+    <ul class="note-list">
+      <li><b>Beneficio total</b>: ventas (con criterio FIFO y comisiones) + plusvalía latente al precio que introduces + dividendos brutos.</li>
+      <li><b>% s/ compras</b>: beneficio total entre todo lo que has pagado en compras. Es sencillo, pero infravalora si reinviertes el dinero de las ventas.</li>
+      <li><b>Rentabilidad s/ capital medio</b>: beneficio total entre el dinero que, de media, has tenido invertido desde tu primera compra (${fmtD(R.primera)}). No está anualizada.</li>
+      <li><b>TIR</b>: rentabilidad anual equivalente que tiene en cuenta cuándo entró y salió cada euro. Con menos de un año de historial puede salir extrema; tómala con cautela.</li>
+      <li><b>Periodo medio invertido</b>: días que ha estado invertido cada euro de coste, de media. Lo vendido cuenta hasta la venta y lo vivo hasta hoy.</li>
+    </ul>
+  </details>
+  </div>`;
+}
+
+function renderMovs(R){
+  const el=$('v-movimientos');
+  const editando = editId? state.movs.find(m=>m.id===editId) : null;
+  const t = editando? editando.tipo : tipoForm;
+  const m = editando || {};
+  const anios=[...new Set(state.movs.map(x=>x.fecha.slice(0,4)))].sort().reverse();
+  const valoresUsados=[...new Set(state.movs.map(x=>x.valor))].sort();
+  let lista = R.ord.slice().reverse();
+  if(filtroValor) lista=lista.filter(x=>x.valor===filtroValor);
+  if(filtroAnio) lista=lista.filter(x=>x.fecha.startsWith(filtroAnio));
+  const ventaMap = new Map(R.ventas.map(v=>[v.mov.id,v]));
+  const v = (x)=> x==null||x===''||(typeof x==='number'&&isNaN(x))? '' : String(x).replace('.',',');
+
+  el.innerHTML = `
+  <div style="display:flex;flex-direction:column;gap:16px">
+  <div class="panel">
+    <div class="toolbar"><h2>${editando?'Editar movimiento':'Nuevo movimiento'}</h2>
+      ${editando?'':`<div class="seg" role="group" aria-label="Tipo">${['compra','venta','dividendo'].map(k=>`<button type="button" data-tipo="${k}" aria-pressed="${t===k}">${k[0].toUpperCase()+k.slice(1)}</button>`).join('')}</div>`}
+    </div>
+    <form class="mov" id="fMov" novalidate>
+      <label>Fecha<input type="date" id="fFecha" required value="${esc(m.fecha||todayStr())}"></label>
+      <label>Valor (ticker)<input id="fValor" list="valores" required autocomplete="off" placeholder="SAN" value="${esc(m.valor||'')}"></label>
+      ${t==='dividendo' ? `
+        <label>Importe bruto (€)<input class="numin" id="fBruto" inputmode="decimal" placeholder="115,00" value="${v(m.bruto)}"></label>
+        <label>Retención (€)<input class="numin" id="fRet" inputmode="decimal" placeholder="19 % si lo dejas vacío" value="${v(m.retencion)}"></label>
+      ` : `
+        <label>Títulos<input class="numin" id="fTit" inputmode="decimal" placeholder="100" value="${v(m.titulos)}"></label>
+        <label>Precio por acción (€)<input class="numin" id="fPrecio" inputmode="decimal" placeholder="6,85" value="${v(m.precio)}"></label>
+        <label>Comisiones y gastos (€)<input class="numin" id="fGastos" inputmode="decimal" placeholder="0,00" value="${v(m.gastos)}"></label>
+      `}
+      <label>ISIN (opcional)<input id="fIsin" autocomplete="off" placeholder="ES0113900J37" value="${esc(m.isin||'')}"></label>
+      <label>Nota (opcional)<input id="fNota" autocomplete="off" value="${esc(m.nota||'')}"></label>
+      <div class="preview" id="fPrev"></div>
+      <div class="err-msg" id="fErr" hidden></div>
+      <div class="actions" style="grid-column:1/-1">
+        <button class="btn" type="submit">${editando?'Guardar cambios':'Añadir '+t}</button>
+        ${editando?'<button class="btn ghost" type="button" id="fCancel">Cancelar</button>':''}
+      </div>
+    </form>
+  </div>
+
+  <div class="toolbar">
+    <h2>Historial <span class="muted" style="font-weight:400;font-size:.9rem">(${lista.length})</span></h2>
+    <div class="actions">
+      <label>Valor<select id="flV"><option value="">Todos</option>${valoresUsados.map(x=>`<option ${x===filtroValor?'selected':''}>${esc(x)}</option>`).join('')}</select></label>
+      <label>Año<select id="flA"><option value="">Todos</option>${anios.map(x=>`<option ${x===filtroAnio?'selected':''}>${x}</option>`).join('')}</select></label>
+    </div>
+  </div>
+  ${borrarId?`<div class="confirm"><span>¿Eliminar este movimiento? No se puede deshacer.</span><button class="btn danger small" id="cSi">Eliminar</button><button class="btn ghost small" id="cNo">Cancelar</button></div>`:''}
+  <div class="cards mob">${lista.length? lista.map(x=>{
+      const vt=ventaMap.get(x.id);
+      let imp, det, res='';
+      if(x.tipo==='compra'){imp=-(x.titulos*x.precio+(x.gastos||0)); det=`${NUM.format(x.titulos)} × ${EUR4.format(x.precio)} € · gastos ${eur(x.gastos||0)}`;}
+      else if(x.tipo==='venta'){imp=x.titulos*x.precio-(x.gastos||0); det=`${NUM.format(x.titulos)} × ${EUR4.format(x.precio)} € · gastos ${eur(x.gastos||0)}`; if(vt) res=`<span class="${cls(vt.gp)}">${sgn(vt.gp)}</span>${vt.noComputable>0.005?' <span class="chip warn">2 meses</span>':''}${vt.faltan?' <span class="chip err">Faltan títulos</span>':''}`;}
+      else {imp=(x.bruto||0)-(x.retencion||0); det=`bruto ${eur(x.bruto||0)} · retención ${eur(x.retencion||0)}`;}
+      return `<div class="card"${borrarId===x.id?' style="background:var(--loss-soft)"':''}>
+        <div><b>${esc(x.valor)}</b> <span class="chip ${x.tipo}">${x.tipo}</span>${demo?' <span class="chip demo">ej.</span>':''}<div class="meta">${fmtD(x.fecha)}</div></div>
+        <div class="r"><div class="${cls(imp)}">${sgn(imp)}</div>${res?`<div style="font-size:.85rem">${res}</div>`:''}</div>
+        <div class="full meta">${det}${x.nota?' · '+esc(x.nota):''}</div>
+        <div class="full actions" style="justify-content:flex-end"><button class="btn ghost small" data-ed="${esc(x.id)}">Editar</button><button class="btn ghost small" data-del="${esc(x.id)}">Eliminar</button></div>
+      </div>`;}).join('') : `<div class="panel empty">No hay movimientos con estos filtros.</div>`}</div>
+  <div class="tbl desk"><table>
+    <thead><tr><th>Fecha</th><th>Tipo</th><th>Valor</th><th class="n">Títulos</th><th class="n">Precio</th><th class="n">Gastos</th><th class="n">Importe</th><th class="n">Resultado</th><th></th></tr></thead>
+    <tbody>${lista.length? lista.map(x=>{
+      const vt=ventaMap.get(x.id);
+      let imp, res='';
+      if(x.tipo==='compra') imp=-(x.titulos*x.precio+(x.gastos||0));
+      else if(x.tipo==='venta'){imp=x.titulos*x.precio-(x.gastos||0); if(vt) res=`<span class="${cls(vt.gp)}">${sgn(vt.gp)}</span>${vt.noComputable>0.005?' <span class="chip warn" title="Regla de los dos meses">2 meses</span>':''}${vt.faltan?' <span class="chip err">Faltan títulos</span>':''}`;}
+      else {imp=(x.bruto||0)-(x.retencion||0); res=`<span class="muted">bruto ${eur(x.bruto||0)}</span>`;}
+      return `<tr${borrarId===x.id?' style="background:var(--loss-soft)"':''}>
+        <td class="n">${fmtD(x.fecha)}</td><td><span class="chip ${x.tipo}">${x.tipo}</span>${demo?' <span class="chip demo">ej.</span>':''}</td>
+        <td><b>${esc(x.valor)}</b>${x.nota?`<div class="muted" style="font-size:.78rem;white-space:normal;max-width:220px">${esc(x.nota)}</div>`:''}</td>
+        <td class="n">${x.tipo==='dividendo'?'':NUM.format(x.titulos)}</td>
+        <td class="n">${x.tipo==='dividendo'?'':EUR4.format(x.precio)}</td>
+        <td class="n">${x.tipo==='dividendo'?eur(x.retencion||0)+' ret.':eur(x.gastos||0)}</td>
+        <td class="n ${cls(imp)}">${sgn(imp)}</td><td class="n">${res}</td>
+        <td><div class="actions" style="flex-wrap:nowrap"><button class="btn ghost small" data-ed="${esc(x.id)}">Editar</button><button class="btn ghost small" data-del="${esc(x.id)}">Eliminar</button></div></td></tr>`;}).join('') : `<tr><td colspan="9" class="empty">No hay movimientos con estos filtros.</td></tr>`}
+    </tbody></table></div>
+  </div>`;
+
+  el.querySelectorAll('[data-tipo]').forEach(b=>b.onclick=()=>{tipoForm=b.dataset.tipo;render();});
+  $('flV').onchange=e=>{filtroValor=e.target.value;render();};
+  $('flA').onchange=e=>{filtroAnio=e.target.value;render();};
+  el.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{editId=b.dataset.ed;borrarId=null;render();window.scrollTo({top:0,behavior:'smooth'});});
+  el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{borrarId=b.dataset.del;render();});
+  if(borrarId){$('cSi').onclick=()=>{
+      if(demo){empezarSilencioso();}
+      else {state.movs=state.movs.filter(x=>x.id!==borrarId);guardar();}
+      borrarId=null;render();toast('Movimiento eliminado');};
+    $('cNo').onclick=()=>{borrarId=null;render();};}
+  if(editando) $('fCancel').onclick=()=>{editId=null;render();};
+
+  const prev=()=>{
+    const p=$('fPrev'); if(!p) return;
+    if(t==='dividendo'){const b=toNum($('fBruto').value);let r=toNum($('fRet').value);if(isNaN(r)&&isFinite(b))r=r2(b*.19);p.textContent=isFinite(b)?`Neto cobrado: ${eur(b-(isFinite(r)?r:0))} · retención ${eur(isFinite(r)?r:0)}`:'';}
+    else{const q=toNum($('fTit').value),pr=toNum($('fPrecio').value),g=toNum($('fGastos').value)||0;if(isFinite(q)&&isFinite(pr))p.textContent=t==='compra'?`Coste total: ${eur(q*pr+g)} · coste por acción con gastos: ${EUR4.format((q*pr+g)/q)} €`:`Importe neto de la venta: ${eur(q*pr-g)}`;else p.textContent='';}
+  };
+  $('fMov').addEventListener('input',prev); prev();
+  $('fMov').onsubmit=e=>{
+    e.preventDefault();
+    const err=$('fErr'); err.hidden=true;
+    const fecha=$('fFecha').value, valor=$('fValor').value.trim().toUpperCase();
+    const fail=t=>{err.textContent=t;err.hidden=false;};
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return fail('Indica la fecha del movimiento.');
+    if(!valor) return fail('Indica el valor, por ejemplo SAN o ITX.');
+    const o={tipo:t,fecha,valor,isin:$('fIsin').value.trim().toUpperCase(),nota:$('fNota').value.trim()};
+    if(t==='dividendo'){
+      o.bruto=toNum($('fBruto').value); if(!(o.bruto>0)) return fail('Indica el importe bruto del dividendo (antes de retención).');
+      const r=toNum($('fRet').value); o.retencion = isNaN(r)? r2(o.bruto*.19) : r;
+      if(o.retencion<0||o.retencion>o.bruto) return fail('La retención debe estar entre 0 y el importe bruto.');
+      o.titulos=0;o.precio=0;o.gastos=0;
+    } else {
+      o.titulos=toNum($('fTit').value); o.precio=toNum($('fPrecio').value); o.gastos=toNum($('fGastos').value); if(isNaN(o.gastos))o.gastos=0;
+      if(!(o.titulos>0)) return fail('Indica cuántos títulos.');
+      if(!(o.precio>0)) return fail('Indica el precio por acción.');
+      if(o.gastos<0) return fail('Las comisiones no pueden ser negativas.');
+      o.bruto=0;o.retencion=0;
+    }
+    if(demo) empezarSilencioso();
+    if(editando && !demo){Object.assign(state.movs.find(x=>x.id===editId),o);editId=null;toast('Cambios guardados');}
+    else {const seq=Math.max(0,...state.movs.map(x=>x.seq||0))+1; state.movs.push(Object.assign({id:uid(),seq},o)); toast(t[0].toUpperCase()+t.slice(1)+' añadida');}
+    editId=null;
+    guardar(); render();
+  };
+}
+function empezarSilencioso(){state={movs:[],precios:{}};demo=false;}
+
+function varHoy(v){const x=state.precios[v];if(!x||x.v==null||!isFinite(x.v))return '';const c=x.v/100;return `<div class="meta ${cls(c)}">hoy ${pct(c)}</div>`;}
+function renderCartera(R,hoy){
+  const el=$('v-cartera');
+  const P=R.posiciones;
+  const tot={coste:P.reduce((s,p)=>s+p.coste,0),merc:P.reduce((s,p)=>s+(isFinite(p.mercado)?p.mercado:0),0),lat:P.reduce((s,p)=>s+(isFinite(p.latente)?p.latente:0),0),div:P.reduce((s,p)=>s+p.divVal,0)};
+  el.innerHTML = `
+  <div style="display:flex;flex-direction:column;gap:16px">
+  <div class="toolbar"><h2>Posiciones abiertas</h2>
+    ${ajustes.csvUrl?`<div class="actions"><span class="muted" style="font-size:.82rem">${ajustes.ultimaAct?'Precios de las '+new Date(ajustes.ultimaAct).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' · retraso aprox. 15 min':'Sin actualizar todavía'}</span><button class="btn small" id="bAct" ${cargandoPrecios||demo?'disabled':''}>${cargandoPrecios?'Actualizando…':'Actualizar precios'}</button></div>`:`<button class="btn ghost small" id="bConf">Conectar precios automáticos</button>`}</div>
+  ${errPrecios?`<p class="err-msg">${esc(errPrecios)}</p>`:''}
+  <p class="note">${ajustes.csvUrl?'Los precios se actualizan solos cada 5 minutos con la app abierta. También puedes escribir uno a mano.':'Escribe el último precio de cada valor y pulsa Intro, o conecta los precios automáticos en Ajustes.'} El coste incluye las comisiones de compra y sigue el criterio FIFO.</p>
+  <div class="cards mob">${P.length? P.map(p=>`<div class="card">
+      <div><b>${esc(p.valor)}</b><div class="meta">${NUM.format(p.qty)} tít. · medio ${EUR4.format(p.pm)} €</div><div class="meta">coste ${eur(p.coste)} · ${fmtDays(p.diasMedio)}</div>${varHoy(p.valor)}</div>
+      <div class="r"><div>${isFinite(p.mercado)?eur(p.mercado):'—'}</div><div class="${cls(p.latente)}">${isFinite(p.latente)?sgn(p.latente):'sin precio'}</div><div class="${cls(p.latente)}" style="font-size:.85rem">${isFinite(p.latente)?pct(p.latente/p.coste):''}</div></div>
+      <label class="full" style="flex-direction:row;align-items:center;justify-content:space-between;gap:10px;margin-top:4px"><span>Precio actual${p.fechaPrecio?' · '+fmtD(p.fechaPrecio):''}</span><input class="numin priceIn" inputmode="decimal" id="prm-${esc(p.valor)}" data-pr="${esc(p.valor)}" value="${isFinite(p.precio)?String(p.precio).replace('.',','):''}" placeholder="—"></label>
+      ${p.divVal?`<div class="full meta">Dividendos cobrados: ${eur(p.divVal)} brutos</div>`:''}
+    </div>`).join('') : `<div class="panel empty">No tienes posiciones abiertas.</div>`}
+    ${P.length?`<div class="card"><div><b>Total</b><div class="meta">coste ${eur(tot.coste)}</div></div><div class="r"><div>${eur(tot.merc)}</div><div class="${cls(tot.lat)}">${sgn(tot.lat)}</div></div></div>`:''}</div>
+  <div class="tbl desk"><table>
+    <thead><tr><th>Valor</th><th class="n">Títulos</th><th class="n">Precio medio</th><th class="n">Coste</th><th class="n">Precio actual</th><th>Fecha precio</th><th class="n">Valor mercado</th><th class="n">Latente €</th><th class="n">Latente %</th><th class="n">Dividendos</th><th class="n">Tiempo medio</th></tr></thead>
+    <tbody>${P.length? P.map(p=>`<tr>
+      <td><b>${esc(p.valor)}</b> <span class="muted" style="font-size:.78rem">${p.lotes} lote${p.lotes>1?'s':''}</span>${varHoy(p.valor)}</td>
+      <td class="n">${NUM.format(p.qty)}</td><td class="n">${EUR4.format(p.pm)}</td><td class="n">${eur(p.coste)}</td>
+      <td class="n"><input class="numin priceIn" inputmode="decimal" id="pr-${esc(p.valor)}" data-pr="${esc(p.valor)}" value="${isFinite(p.precio)?String(p.precio).replace('.',','):''}" placeholder="—" aria-label="Precio actual de ${esc(p.valor)}"></td>
+      <td class="muted">${p.fechaPrecio?fmtD(p.fechaPrecio)+(state.precios[p.valor]&&state.precios[p.valor].h?' '+state.precios[p.valor].h:''):'sin precio'}</td>
+      <td class="n">${isFinite(p.mercado)?eur(p.mercado):'—'}</td>
+      <td class="n ${cls(p.latente)}">${isFinite(p.latente)?sgn(p.latente):'—'}</td>
+      <td class="n ${cls(p.latente)}">${isFinite(p.latente)?pct(p.latente/p.coste):'—'}</td>
+      <td class="n">${eur(p.divVal)}</td>
+      <td class="n">${fmtDays(p.diasMedio)}</td></tr>`).join('') : `<tr><td colspan="11" class="empty">No tienes posiciones abiertas.</td></tr>`}</tbody>
+    ${P.length?`<tfoot><tr><td>Total</td><td></td><td></td><td class="n">${eur(tot.coste)}</td><td></td><td></td><td class="n">${eur(tot.merc)}</td><td class="n ${cls(tot.lat)}">${sgn(tot.lat)}</td><td class="n ${cls(tot.lat)}">${tot.coste?pct(tot.lat/tot.coste):'—'}</td><td class="n">${eur(tot.div)}</td><td></td></tr></tfoot>`:''}
+  </table></div>
+  <p class="note">"Dividendos" es lo cobrado en bruto por cada valor desde el inicio. "Tiempo medio" es la antigüedad media de los títulos que conservas, ponderada por coste.</p>
+  </div>`;
+  const ba=$('bAct'); if(ba) ba.onclick=()=>actualizarPrecios(false);
+  const bf=$('bConf'); if(bf) bf.onclick=()=>{tab='copia';render();};
+  el.querySelectorAll('[data-pr]').forEach(inp=>{
+    const commit=()=>{const val=inp.dataset.pr;const n=toNum(inp.value);
+      const cur=state.precios[val];
+      if(inp.value.trim()===''){ if(cur){delete state.precios[val];guardar();render();} return;}
+      if(!(n>0)){toast('Precio no válido para '+val);return;}
+      if(cur && cur.p===n && cur.f===hoy) return;
+      if(demo){toast('Estos son datos de ejemplo. Pulsa "Empezar con mi cartera" para usar los tuyos.');}
+      state.precios[val]={p:n,f:hoy,h:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),v:null}; guardar(); render();
+      const nx=$((inp.id.startsWith('prm-')?'prm-':'pr-')+val); if(nx) nx.focus();};
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();commit();}});
+    inp.addEventListener('change',commit);
+  });
+}
+
+function renderFiscal(R,hoy){
+  const el=$('v-fiscal');
+  const anios=Object.keys(R.anios).sort().reverse();
+  if(!anios.length){el.innerHTML=`<div class="panel empty">Todavía no hay ventas ni dividendos: no hay nada que declarar por ahora.</div>`;return;}
+  if(!anioFiscal||!R.anios[anioFiscal]) anioFiscal=anios[0];
+  const a=R.anios[anioFiscal];
+  const enCurso = anioFiscal===hoy.slice(0,4);
+  el.innerHTML = `
+  <div style="display:flex;flex-direction:column;gap:16px">
+  <div class="toolbar"><h2>Ejercicio ${anioFiscal}${enCurso?' <span class="chip warn">en curso</span>':''}</h2>
+    <label>Año fiscal<select id="selA">${anios.map(x=>`<option ${x===anioFiscal?'selected':''}>${x}</option>`).join('')}</select></label></div>
+  <div class="grid2">
+    <div class="panel">
+      <h2>Ganancias y pérdidas por venta de acciones</h2>
+      <dl class="rows">
+        <dt>Ganancias</dt><dd class="pos">${sgn(a.gan)}</dd>
+        <dt>Pérdidas computables</dt><dd class="neg">${sgn(a.per)}</dd>
+        <dt class="total">Saldo neto</dt><dd class="total ${cls(a.saldoGP)}">${sgn(a.saldoGP)}</dd>
+        ${a.noComp>0.005?`<dt>Pérdidas no computables por recompra (regla de los dos meses)</dt><dd class="muted">${eur(a.noComp)}</dd>`:''}
+      </dl>
+      <p class="note">En la declaración, cada venta va con su valor de transmisión y su valor de adquisición. La tabla de abajo te da ambos importes, ya con comisiones.</p>
+    </div>
+    <div class="panel">
+      <h2>Dividendos (rendimientos del capital mobiliario)</h2>
+      <dl class="rows">
+        <dt>Ingresos íntegros (brutos)</dt><dd>${eur(a.divBruto)}</dd>
+        <dt>Retenciones a cuenta</dt><dd>${eur(a.divRet)}</dd>
+        <dt class="total">Neto cobrado</dt><dd class="total">${eur(a.divBruto-a.divRet)}</dd>
+      </dl>
+      <p class="note">Si tu entidad te cobra comisión de custodia o administración, puede deducirse de estos rendimientos; esta herramienta no la registra.</p>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Estimación de la base del ahorro</h2>
+    <dl class="rows">
+      <dt>Saldo de ganancias y pérdidas</dt><dd class="${cls(a.saldoGP)}">${sgn(a.saldoGP)}</dd>
+      <dt>Dividendos brutos</dt><dd>${eur(a.divBruto)}</dd>
+      ${a.arrUsado>0.005?`<dt>Pérdidas de años anteriores compensadas</dt><dd>−${eur(a.arrUsado)}</dd>`:''}
+      ${a.compensa>0.005?`<dt>Pérdida del año compensada con dividendos (máx. 25 %)</dt><dd>−${eur(a.compensa)}</dd>`:''}
+      <dt class="total">Base del ahorro estimada</dt><dd class="total">${eur(a.base)}</dd>
+      <dt>Cuota estimada (escala del ahorro 19–30 %)</dt><dd>${eur(a.cuota)}</dd>
+      <dt>Menos retenciones ya soportadas</dt><dd>−${eur(a.divRet)}</dd>
+      <dt class="total">${a.resultado>=0?'A pagar por estas inversiones (aprox.)':'A devolver por estas inversiones (aprox.)'}</dt><dd class="total ${a.resultado>=0?'neg':'pos'}">${eur(Math.abs(a.resultado))}</dd>
+      ${a.arrastreSiguiente>0.005?`<dt>Pérdidas pendientes de compensar en años siguientes</dt><dd>${eur(a.arrastreSiguiente)}</dd>`:''}
+    </dl>
+    <p class="note"><b>Es una estimación orientativa, no tu declaración.</b> Solo tiene en cuenta lo registrado aquí, incluidas las pérdidas de años anteriores que estén registradas (con un plazo de 4 años). No incluye intereses de cuentas, fondos, otras ganancias ni la escala de País Vasco y Navarra. La cifra real depende de toda tu base del ahorro.</p>
+  </div>
+  <h2>Detalle de ventas</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Fecha venta</th><th>Valor</th><th class="n">Títulos</th><th class="n">Valor transmisión</th><th class="n">Valor adquisición</th><th>Fechas de compra (FIFO)</th><th class="n">Ganancia / pérdida</th><th class="n">No computable</th><th class="n">Días medio</th></tr></thead>
+    <tbody>${a.ventas.length? a.ventas.map(v=>`<tr>
+      <td class="n">${fmtD(v.fecha)}</td><td><b>${esc(v.valor)}</b></td><td class="n">${NUM.format(v.qty)}</td>
+      <td class="n">${eur(v.transm)}</td><td class="n">${eur(v.adq)}</td>
+      <td style="white-space:normal;min-width:180px">${v.usados.map(u=>`${NUM.format(u.qty)} del ${fmtD(u.fecha)}`).join('<br>')}</td>
+      <td class="n ${cls(v.gp)}">${sgn(v.gp)}</td>
+      <td class="n">${v.noComputable>0.005?`<span class="chip warn">${eur(v.noComputable)}</span>`:'—'}</td>
+      <td class="n">${Math.round(v.diasMedio)}</td></tr>`).join('') : `<tr><td colspan="9" class="empty">Sin ventas en ${anioFiscal}.</td></tr>`}</tbody>
+  </table></div>
+  ${a.divs.length?`<h2>Detalle de dividendos</h2>
+  <div class="tbl"><table><thead><tr><th>Fecha</th><th>Valor</th><th class="n">Bruto</th><th class="n">Retención</th><th class="n">Neto</th></tr></thead>
+  <tbody>${a.divs.map(d=>`<tr><td class="n">${fmtD(d.fecha)}</td><td><b>${esc(d.valor)}</b></td><td class="n">${eur(d.bruto)}</td><td class="n">${eur(d.ret)}</td><td class="n">${eur(d.neto)}</td></tr>`).join('')}</tbody></table></div>`:''}
+  <details class="panel"><summary><b>Reglas que aplica esta herramienta</b></summary>
+    <ul class="note-list">
+      <li><b>FIFO</b> (art. 37.2 LIRPF): al vender, se consideran vendidos primero los títulos comprados antes.</li>
+      <li><b>Comisiones</b>: las de compra suman al valor de adquisición; las de venta restan del valor de transmisión.</li>
+      <li><b>Regla de los dos meses</b> (art. 33.5.f LIRPF): si vendes con pérdida y compras el mismo valor en los dos meses anteriores o posteriores, esa parte de la pérdida no computa ese año. Se integrará cuando vendas los títulos recomprados. Se calcula con el procedimiento de la consulta DGT V0248-18. Compruébalo en casos con varias compras y ventas cruzadas.</li>
+      <li><b>Compensación</b>: un saldo negativo de ganancias se compensa con hasta el 25 % de los dividendos del año; el resto se arrastra 4 años.</li>
+      <li><b>Escala del ahorro desde 2025</b> (territorio común): 19 % hasta 6.000 €, 21 % hasta 50.000 €, 23 % hasta 200.000 €, 27 % hasta 300.000 € y 30 % en adelante.</li>
+      <li><b>No cubre</b>: ampliaciones de capital, derechos de suscripción, scrip dividends, acciones liberadas, splits, valores extranjeros (doble imposición) ni préstamo de valores. Regístralos con cuidado o consúltalos con un asesor fiscal.</li>
+    </ul>
+    <p class="note">Contrasta siempre con el informe fiscal de tu bróker y con tus datos fiscales en la sede de la Agencia Tributaria.</p>
+  </details>
+  </div>`;
+  $('selA').onchange=e=>{anioFiscal=e.target.value;render();};
+}
+
+function toCSV(){
+  const head=['fecha','tipo','valor','isin','titulos','precio','gastos','bruto','retencion','nota'];
+  const q=s=>{s=String(s??'');return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  const nf=n=>n?String(n).replace('.',','):'';
+  return '﻿'+head.join(';')+'\n'+ordenar(state.movs).map(m=>[m.fecha,m.tipo,m.valor,m.isin,nf(m.titulos),nf(m.precio),nf(m.gastos),nf(m.bruto),nf(m.retencion),m.nota].map(q).join(';')).join('\n');
+}
+
+function renderCopia(){
+  const el=$('v-copia');
+  const ult = ajustes.ultimaCopia? new Date(ajustes.ultimaCopia).toLocaleString('es-ES',{dateStyle:'medium',timeStyle:'short'}) : 'nunca';
+  const puedeCompartir = !!(navigator.canShare && window.File && navigator.canShare({files:[new File(['x'],'a.json',{type:'application/json'})]}));
+  el.innerHTML=`
+  <div style="display:flex;flex-direction:column;gap:16px">
+  <div class="panel">
+    <h2>Precios automáticos</h2>
+    <p class="note">La app lee los precios de una hoja de Google tuya que usa la función GOOGLEFINANCE. Las cotizaciones de la Bolsa de Madrid llegan con unos 15 minutos de retraso. La guía de instalación explica cómo crear la hoja.</p>
+    <label>Enlace CSV publicado de tu hoja<input id="aUrl" inputmode="url" autocomplete="off" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?output=csv" value="${esc(ajustes.csvUrl)}"></label>
+    <div class="actions"><button class="btn" id="aGuardar">Guardar y probar</button>${ajustes.csvUrl?'<button class="btn ghost" id="aQuitar">Desconectar</button>':''}</div>
+    ${errPrecios?`<p class="err-msg">${esc(errPrecios)}</p>`:(ajustes.ultimaAct?`<p class="note">Última actualización: ${new Date(ajustes.ultimaAct).toLocaleString('es-ES',{dateStyle:'medium',timeStyle:'short'})}</p>`:'')}
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <h2>Copia de seguridad</h2>
+      <p class="note">Tus datos solo están en este dispositivo. Guarda una copia en iCloud, Google Drive o tu correo de vez en cuando. Última copia: <b>${ult}</b>.</p>
+      <div class="actions">
+        ${puedeCompartir?`<button class="btn" id="eShare" ${demo||!state.movs.length?'disabled':''}>Compartir copia…</button>`:''}
+        <button class="btn ${puedeCompartir?'ghost':''}" id="eJson" ${demo||!state.movs.length?'disabled':''}>Descargar copia (JSON)</button>
+        <button class="btn ghost" id="eCsv" ${demo||!state.movs.length?'disabled':''}>Descargar para Excel (CSV)</button>
+      </div>
+      <p class="note" id="eMsg"></p>
+    </div>
+    <div class="panel">
+      <h2>Restaurar</h2>
+      <p class="note">Carga una copia JSON de esta app o de la versión anterior en Claude. Sustituirá todos los movimientos y precios actuales.</p>
+      <label>Archivo de copia (.json)<input type="file" id="iFile" accept=".json,application/json"></label>
+      <div id="iConf"></div>
+    </div>
+  </div>
+  <p class="note">Cuaderno IBEX <b>v${APP_VERSION}</b> · versión móvil. Funciona sin conexión; solo necesita internet para actualizar precios.</p>
+  </div>`;
+  const nombre=ext=>'cuaderno-ibex-'+todayStr()+'.'+ext;
+  const json=()=>JSON.stringify({app:'cuaderno-ibex',v:1,exportado:new Date().toISOString(),movs:state.movs,precios:state.precios},null,1);
+  const marcar=()=>{ajustes.ultimaCopia=new Date().toISOString();guardarAjustes();};
+  const descargar=(fn,data,type)=>{const url=URL.createObjectURL(new Blob([data],{type}));const a=document.createElement('a');a.href=url;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);};
+  $('eJson').onclick=()=>{descargar(nombre('json'),json(),'application/json');marcar();toast('Copia descargada');render();};
+  $('eCsv').onclick=()=>{descargar(nombre('csv'),toCSV(),'text/csv;charset=utf-8');toast('CSV descargado');};
+  const es=$('eShare'); if(es) es.onclick=async()=>{try{await navigator.share({files:[new File([json()],nombre('json'),{type:'application/json'})],title:'Copia Cuaderno IBEX'});marcar();render();toast('Copia compartida');}catch(e){if(e&&e.name!=='AbortError')$('eMsg').textContent='No se pudo compartir. Usa "Descargar copia".';}};
+  $('aGuardar').onclick=()=>{const u=$('aUrl').value.trim();
+    if(!/^https:\/\/docs\.google\.com\/spreadsheets\/.+/.test(u)){errPrecios='El enlace debe empezar por https://docs.google.com/spreadsheets/ y ser el de "Publicar en la web" en formato CSV.';render();return;}
+    ajustes.csvUrl=u;guardarAjustes();
+    if(demo){toast('Enlace guardado. Pulsa "Empezar con mi cartera" para usarlo.');render();return;}
+    actualizarPrecios(false);};
+  const aq=$('aQuitar'); if(aq) aq.onclick=()=>{ajustes.csvUrl='';ajustes.ultimaAct='';errPrecios='';guardarAjustes();render();toast('Precios automáticos desconectados');};
+  $('iFile').onchange=e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const rd=new FileReader();
+    rd.onload=()=>{
+      let d; try{d=JSON.parse(rd.result);}catch(x){$('iConf').innerHTML='<p class="err-msg">El archivo no es un JSON válido.</p>';return;}
+      if(!d||!Array.isArray(d.movs)){$('iConf').innerHTML='<p class="err-msg">El archivo no parece una copia de Cuaderno IBEX.</p>';return;}
+      const ok=d.movs.filter(m=>m&&/^\d{4}-\d{2}-\d{2}$/.test(m.fecha)&&['compra','venta','dividendo'].includes(m.tipo)&&m.valor);
+      $('iConf').innerHTML=`<div class="confirm"><span>${ok.length} movimientos válidos. ¿Sustituir los datos actuales?</span><button class="btn danger small" id="iSi">Sustituir</button><button class="btn ghost small" id="iNo">Cancelar</button></div>`;
+      $('iSi').onclick=()=>{let s=0;state={movs:ok.map(m=>({id:m.id||uid(),seq:m.seq||++s,tipo:m.tipo,fecha:m.fecha,valor:String(m.valor).toUpperCase(),isin:m.isin||'',titulos:+m.titulos||0,precio:+m.precio||0,gastos:+m.gastos||0,bruto:+m.bruto||0,retencion:+m.retencion||0,nota:m.nota||''})),precios:(d.precios&&typeof d.precios==='object')?d.precios:{}};demo=false;guardar();tab='resumen';render();toast('Copia restaurada');if(ajustes.csvUrl)actualizarPrecios(true);};
+      $('iNo').onclick=()=>{$('iConf').innerHTML='';e.target.value='';};
+    };
+    rd.readAsText(f);
+  };
+}
+
+$('fab').onclick=()=>{tab='movimientos';editId=null;borrarId=null;render();window.scrollTo({top:0,behavior:'smooth'});const f=$('fValor');if(f)f.focus();};
+$('tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(!b)return;tab=b.dataset.tab;editId=null;borrarId=null;render();});
+
+/* Exponer el motor para pruebas */
+window.__cuaderno={calcular,ejemplo,xirr,cuotaAhorro,addMonths};
+iniciar();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
+})();
+</script>
+</body>
+</html>
