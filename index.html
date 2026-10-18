@@ -239,6 +239,8 @@ details.fold>summary:hover{background:var(--sunk)}
 .an-p{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums}
 .an-lims{display:flex;flex-wrap:wrap;gap:12px}
 .an-lims label{max-width:180px}
+nav.tabs button.aviso{position:relative}
+nav.tabs button.aviso::after{content:"";position:absolute;top:6px;right:4px;width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 2px var(--surface)}
 @media (max-width:700px){
   .wrap{padding-block:14px calc(150px + env(safe-area-inset-bottom,0px))}
   h1{font-size:1.45rem}
@@ -263,6 +265,7 @@ details.fold>summary:hover{background:var(--sunk)}
   .mk-tools input{max-width:none}
   .cal-row{grid-template-columns:minmax(0,1fr) auto;padding:10px 12px}
   .cal-row .btn{grid-column:2;justify-self:end}
+  nav.tabs button.aviso::after{top:5px;right:calc(50% - 18px)}
   .an-row{grid-template-columns:minmax(0,96px) minmax(0,1fr) 56px;gap:8px}
   nav.tabs button{font-size:.64rem}
   .cv-sum{grid-template-columns:1fr 1fr}
@@ -305,7 +308,7 @@ details.fold>summary:hover{background:var(--sunk)}
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '1.7 · 18/10/2026';
+const APP_VERSION = '1.8 · 18/10/2026';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
 const NOMBRES = Object.fromEntries(IBEX35);
 const nombre = t => NOMBRES[t] || '';
@@ -839,11 +842,10 @@ function movsFiscales(){ const g=grupoFiscal(); return store.movs.filter(m=>g.id
 function cartDefault(ed){ if(ed&&carteraDe(ed.cartera)) return ed.cartera; return store.activa!=='todas'&&carteraDe(store.activa)?store.activa:store.carteras[0].id; }
 function renderCartBar(){
   const el=$('cartBar'); if(!el) return;
-  if(!store.carteras.length){el.innerHTML='';return;}
-  const multi=store.carteras.length>1;
-  el.innerHTML=`<span class="cb-l">Cartera</span>${multi?`<select id="selCart" aria-label="Cartera que estás viendo">${store.carteras.map(c=>`<option value="${esc(c.id)}" ${c.id===store.activa?'selected':''}>${esc(c.nombre)}${c.fiscal==='independiente'?' · independiente':''}</option>`).join('')}<option value="todas" ${store.activa==='todas'?'selected':''}>Todas las carteras</option></select>`:`<b class="cb-n">${esc(store.carteras[0].nombre)}</b>`}<button class="btn ghost small" id="cbGest" type="button">${multi?'Gestionar':'Renombrar o añadir'}</button>`;
+  if(store.carteras.length<2){ el.innerHTML=''; el.hidden=true; return; }
+  el.hidden=false;
+  el.innerHTML=`<span class="cb-l">Cartera</span><select id="selCart" aria-label="Cartera que estás viendo">${store.carteras.map(c=>`<option value="${esc(c.id)}" ${c.id===store.activa?'selected':''}>${esc(c.nombre)}${c.fiscal==='independiente'?' · independiente':''}</option>`).join('')}<option value="todas" ${store.activa==='todas'?'selected':''}>Todas las carteras</option></select>`;
   const s=$('selCart'); if(s) s.onchange=()=>{store.activa=s.value;editId=null;borrarId=null;if(!demo)guardar();render();};
-  $('cbGest').onclick=()=>{tab='copia';render();setTimeout(()=>{const p=$('carterasPanel');if(p)p.scrollIntoView({behavior:'smooth',block:'start'});},60);};
 }
 function infoFiscal(){
   if(store.carteras.length<2) return '';
@@ -995,8 +997,10 @@ function renderBanner(){
     $('bEmpezar').onclick=empezar;
   } else {
     const dias = ajustes.ultimaCopia? days(ajustes.ultimaCopia.slice(0,10),todayStr()) : Infinity;
-    b.innerHTML = (state.movs.length && dias>30) ? `<div class="banner"><p>${ajustes.ultimaCopia?'Tu última copia de seguridad es de hace '+dias+' días.':'Aún no has hecho ninguna copia de seguridad.'} Tus datos solo están en este dispositivo.</p><button class="btn ghost" id="bCopia">Hacer copia</button></div>` : '';
-    const bc=$('bCopia'); if(bc) bc.onclick=()=>{tab='copia';render();};
+    const toca = store.movs.length && dias>30;
+    const nb=document.querySelector('#tabs [data-tab=copia]'); if(nb){ nb.classList.toggle('aviso',!!toca); nb.title=toca?'Toca hacer una copia de seguridad':''; }
+    b.innerHTML = (toca && tab==='copia') ? `<div class="banner"><p>${ajustes.ultimaCopia?'Tu última copia de seguridad es de hace '+dias+' días.':'Aún no has hecho ninguna copia de seguridad.'} Tus datos solo están en este dispositivo.</p><button class="btn ghost" id="bCopia">Hacer copia</button></div>` : '';
+    const bc=$('bCopia'); if(bc) bc.onclick=()=>{const t=$('eShare')||$('eJson'); if(t){t.scrollIntoView({behavior:'smooth',block:'center'}); try{t.focus({preventScroll:true});}catch(e){}}};
   }
 }
 
