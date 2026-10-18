@@ -202,7 +202,7 @@ label.rad input{width:auto;flex:none}
 .eye svg{width:18px;height:18px}
 .eye[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
 body.oculto .pos,body.oculto .neg{color:inherit!important}
-body.oculto .evo,body.oculto .cal-row .d,body.oculto .dbars,body.oculto .cv-bars,body.oculto .bars,body.oculto .chip.gan,body.oculto .chip.per,body.oculto .gl-sum,body.oculto .cv-leg{filter:blur(7px);pointer-events:none;user-select:none}
+body.oculto .an-list,body.oculto .evo,body.oculto .cal-row .d,body.oculto .dbars,body.oculto .cv-bars,body.oculto .bars,body.oculto .chip.gan,body.oculto .chip.per,body.oculto .gl-sum,body.oculto .cv-leg{filter:blur(7px);pointer-events:none;user-select:none}
 .chip.liberadas,.chip.derechos,.chip.split{background:var(--warn-soft);color:var(--warn)}
 .hint{grid-column:1/-1;font-size:.82rem;color:var(--muted);background:var(--sunk);border-radius:5px;padding:8px 10px;margin:0}
 .esp-sel{max-width:280px}
@@ -219,6 +219,26 @@ body.oculto .evo,body.oculto .cal-row .d,body.oculto .dbars,body.oculto .cv-bars
 .cal-row .px{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:.9rem}
 .cal-row .px .d{font-size:.8rem;color:var(--gain)}
 .cal-form{margin-bottom:6px}
+details.fold{gap:0;padding:0}
+details.fold>summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;padding:14px 44px 14px 16px;position:relative;border-radius:6px}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::after{content:"";position:absolute;right:18px;top:50%;width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:translateY(-70%) rotate(45deg);transition:transform .15s}
+details.fold[open]>summary::after{transform:translateY(-30%) rotate(-135deg)}
+details.fold>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.fold>summary:hover{background:var(--sunk)}
+.fold-t{font-family:var(--f-display);font-weight:600;font-size:1.1rem}
+.fold-s{font-size:.82rem;color:var(--muted)}
+.fold-b{display:flex;flex-direction:column;gap:12px;padding:0 16px 16px}
+.an-list{display:flex;flex-direction:column;gap:8px}
+.an-row{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr) 64px;gap:10px;align-items:center;font-size:.86rem}
+.an-l{min-width:0}.an-l small{display:block;color:var(--muted);font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.an-track{position:relative;height:12px;background:var(--sunk);border-radius:3px}
+.an-fill{height:100%;background:var(--accent);border-radius:3px}
+.an-fill.over{background:var(--loss)}
+.an-lim{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--fg);transform:translateX(-1px)}
+.an-p{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.an-lims{display:flex;flex-wrap:wrap;gap:12px}
+.an-lims label{max-width:180px}
 @media (max-width:700px){
   .wrap{padding-block:14px calc(150px + env(safe-area-inset-bottom,0px))}
   h1{font-size:1.45rem}
@@ -243,6 +263,7 @@ body.oculto .evo,body.oculto .cal-row .d,body.oculto .dbars,body.oculto .cv-bars
   .mk-tools input{max-width:none}
   .cal-row{grid-template-columns:minmax(0,1fr) auto;padding:10px 12px}
   .cal-row .btn{grid-column:2;justify-self:end}
+  .an-row{grid-template-columns:minmax(0,96px) minmax(0,1fr) 56px;gap:8px}
   nav.tabs button{font-size:.64rem}
   .cv-sum{grid-template-columns:1fr 1fr}
   .cv-sum div:last-child{grid-column:1/-1;flex-direction:row;align-items:baseline;gap:10px}
@@ -284,7 +305,7 @@ body.oculto .evo,body.oculto .cal-row .d,body.oculto .dbars,body.oculto .cv-bars
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '1.5 · 18/10/2026';
+const APP_VERSION = '1.7 · 18/10/2026';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
 const NOMBRES = Object.fromEntries(IBEX35);
 const nombre = t => NOMBRES[t] || '';
@@ -385,6 +406,8 @@ function proximosDividendos(hoy,dias){
   return calendario().filter(d=>{const f=fechaClave(d); const fin=d.mes&&!d.ex&&!d.pago? d.mes+'-31':f; return fin>=hoy && f<=lim;});
 }
 let calForm=false;
+let fold={div:false,acc:true,obj:true}; try{ fold=Object.assign(fold,JSON.parse(localStorage.getItem('cartera-plegado')||'{}')); }catch(e){}
+function wireFolds(){ document.querySelectorAll('details[data-fold]').forEach(d=>d.addEventListener('toggle',()=>{ fold[d.dataset.fold]=d.open; try{localStorage.setItem('cartera-plegado',JSON.stringify(fold));}catch(e){} })); }
 
 /* ---------- Historial del valor de cada cartera (para la gráfica de evolución) ---------- */
 function registrarHistorial(){
@@ -493,6 +516,115 @@ function wireSimulador(R,hoy){
       fifo:vs.usados.map(u=>NUM0.format(Math.round(u.qty*10000)/10000)+' comprados el '+fmtD(u.fecha)).join('; ')};
     render();
   };
+}
+
+
+/* ---------- Análisis de la cartera (concentración por valor y sector) ---------- */
+const SECTOR={SAN:'Banca',BBVA:'Banca',CABK:'Banca',SAB:'Banca',BKT:'Banca',UNI:'Banca',MAP:'Seguros',
+  IBE:'Eléctricas y gas',ELE:'Eléctricas y gas',NTGY:'Eléctricas y gas',RED:'Eléctricas y gas',ENG:'Eléctricas y gas',
+  ANE:'Renovables',SLR:'Renovables',REP:'Petróleo',
+  ACS:'Construcción e infraestructuras',FER:'Construcción e infraestructuras',SCYR:'Construcción e infraestructuras',ANA:'Construcción e infraestructuras',
+  AENA:'Transporte y turismo',IAG:'Transporte y turismo',AMS:'Transporte y turismo',
+  ACX:'Industria y materiales',MTS:'Industria y materiales',FDR:'Industria y materiales',
+  TEF:'Telecomunicaciones',CLNX:'Telecomunicaciones',IDR:'Tecnología y defensa',
+  ITX:'Consumo y distribución',PUIG:'Consumo y distribución',LOG:'Consumo y distribución',
+  GRF:'Salud',ROVI:'Salud',COL:'Inmobiliario',MRL:'Inmobiliario'};
+const sectorDe=t=>SECTOR[t]||'Otros';
+function limites(){ const l=store.limites||{}; return {valor:l.valor>0?l.valor:25, sector:l.sector>0?l.sector:40}; }
+function analisis(R){
+  const pos=R.posiciones.map(p=>({t:p.valor,v:isFinite(p.mercado)?p.mercado:p.coste,sinPrecio:!isFinite(p.mercado)}));
+  const tot=pos.reduce((s,p)=>s+p.v,0);
+  if(!(tot>0)) return null;
+  const vals=pos.map(p=>({...p,w:p.v/tot})).sort((a,b)=>b.w-a.w);
+  const sm={}; vals.forEach(p=>{const s=sectorDe(p.t); sm[s]=(sm[s]||0)+p.w;});
+  const sects=Object.entries(sm).map(([s,w])=>({s,w})).sort((a,b)=>b.w-a.w);
+  const L=limites();
+  return {vals,sects,L,excV:vals.filter(p=>p.w*100>L.valor+1e-9),excS:sects.filter(x=>x.w*100>L.sector+1e-9)};
+}
+function barraPeso(lbl,sub,w,lim){
+  return `<div class="an-row"><div class="an-l"><b>${esc(lbl)}</b>${sub?`<small>${esc(sub)}</small>`:''}</div>
+    <div class="an-track" role="img" aria-label="${esc(lbl)}: ${(w*100).toFixed(1)} %"><div class="an-fill ${w*100>lim+1e-9?'over':''}" style="width:${Math.min(100,w*100).toFixed(1)}%"></div><span class="an-lim" style="left:${Math.min(100,lim)}%"></span></div>
+    <div class="an-p ${w*100>lim+1e-9?'neg':''}">${pct(w).replace('+','')}</div></div>`;
+}
+function panelAnalisis(R){
+  const a=analisis(R);
+  if(!a) return '';
+  const avisos=[...a.excV.map(p=>`<b>${esc(nombre(p.t)||p.t)}</b> supone el ${pct(p.w).replace('+','')} de tu cartera (tu límite: ${a.L.valor} %).`),
+                ...a.excS.map(x=>`El sector <b>${esc(x.s)}</b> supone el ${pct(x.w).replace('+','')} (tu límite: ${a.L.sector} %).`)];
+  return `<div class="panel">
+    <div class="cv-head"><h2>Análisis de tu cartera</h2><span class="muted" style="font-size:.8rem">${a.vals.length} valor${a.vals.length===1?'':'es'} · ${a.sects.length} sector${a.sects.length===1?'':'es'}</span></div>
+    ${avisos.length?`<ul class="alerts">${avisos.map(t=>`<li><b>Concentración:</b> ${t}</li>`).join('')}</ul>`:`<p class="note pos" style="margin:0">Ningún valor ni sector supera tus límites de concentración.</p>`}
+    <h3>Peso por valor</h3>
+    <div class="an-list">${a.vals.map(p=>barraPeso(p.t,(nombre(p.t)||'')+(p.sinPrecio?' · valorado a coste':''),p.w,a.L.valor)).join('')}</div>
+    <h3>Peso por sector</h3>
+    <div class="an-list">${a.sects.map(x=>barraPeso(x.s,'',x.w,a.L.sector)).join('')}</div>
+    <div class="an-lims">
+      <label>Límite por valor (%)<input class="numin" id="limV" inputmode="decimal" value="${a.L.valor}"></label>
+      <label>Límite por sector (%)<input class="numin" id="limS" inputmode="decimal" value="${a.L.sector}"></label>
+    </div>
+    <p class="note">La raya vertical marca tu límite. Los límites los decides tú; es habitual no concentrar demasiado en un solo valor o sector, pero no hay una cifra correcta para todo el mundo. Pesos calculados con el valor de mercado (o el coste si falta el precio). Clasificación sectorial simplificada.</p>
+  </div>`;
+}
+function wireAnalisis(){
+  const f=(id,k)=>{const i=$(id); if(!i) return; i.onchange=()=>{const n=toNum(i.value); if(!(n>0&&n<=100)){toast('Escribe un porcentaje entre 1 y 100');render();return;} store.limites=Object.assign({},store.limites||{},{[k]:n}); if(!demo)guardar(); render();};};
+  f('limV','valor'); f('limS','sector');
+}
+function avisosConcentracion(R){ const a=analisis(R); if(!a) return [];
+  return [...a.excV.map(p=>`<li><b>Concentración · ${esc(p.t)}</b> — supone el ${pct(p.w).replace('+','')} de tu cartera (límite ${a.L.valor} %). Detalle en <b>Cartera</b>.</li>`),
+          ...a.excS.map(x=>`<li><b>Concentración · ${esc(x.s)}</b> — el sector supone el ${pct(x.w).replace('+','')} (límite ${a.L.sector} %).</li>`)]; }
+
+/* ---------- Objetivos de precio ---------- */
+let objForm=false;
+function estadoObjetivo(o){
+  const x=store.precios[o.t]; const p=x&&x.p>0?x.p:NaN;
+  if(!isFinite(p)) return {p,est:'sin',dist:NaN};
+  const alc=o.tipo==='compra'?p<=o.precio:p>=o.precio;
+  const dist=o.tipo==='compra'?(p/o.precio-1):(o.precio/p-1);
+  return {p,est:alc?'alcanzado':dist<=0.03?'cerca':'lejos',dist,fecha:x.f};
+}
+function panelObjetivos(){
+  const objs=(store.objetivos||[]);
+  const alc=objs.filter(o=>estadoObjetivo(o).est==='alcanzado').length;
+  const filas=objs.map(o=>{const e=estadoObjetivo(o);
+    const chip=e.est==='alcanzado'?'<span class="chip gan">Alcanzado</span>':e.est==='cerca'?'<span class="chip warn">Cerca</span>':e.est==='sin'?'<span class="chip demo">Sin precio</span>':'';
+    return `<div class="cal-row${e.est==='alcanzado'?' mine':''}">
+      <div class="nm"><span class="full">${esc(nombre(o.t)||o.t)}</span> ${chip}
+        <small>${esc(o.t)} · ${o.tipo==='compra'?'Comprar si baja a':'Vender si sube a'} ${EUR4.format(o.precio)} €${o.nota?' · '+esc(o.nota):''}</small></div>
+      <div class="px"><div>${isFinite(e.p)?EUR40.format(e.p)+' €':'—'}</div>${isFinite(e.dist)&&e.est!=='alcanzado'?`<div class="d" style="color:var(--muted)">a ${NUM0.format(Math.round(Math.abs(e.dist)*1000)/10)} %</div>`:''}</div>
+      <button class="btn ghost small" type="button" data-objx="${esc(o.id)}">Quitar</button>
+    </div>`;}).join('');
+  return `<details class="panel fold" data-fold="obj" ${fold.obj!==false||objForm?'open':''}>
+    <summary><span class="fold-t">Mis objetivos de precio</span><span class="fold-s">${objs.length?objs.length+' objetivo'+(objs.length===1?'':'s')+(alc?' · <b class="pos">'+alc+' alcanzado'+(alc===1?'':'s')+'</b>':''):'Ninguno todavía'}</span></summary>
+    <div class="fold-b">
+      <div class="actions"><button class="btn ghost small" type="button" id="objAdd">${objForm?'Cerrar formulario':'Añadir objetivo'}</button></div>
+      ${objForm?`<div class="mov cal-form">
+        <label>Valor<input id="oT" list="valores" autocomplete="off" placeholder="SAN"></label>
+        <label>Quiero…<select id="oTipo"><option value="compra">Comprar si baja a</option><option value="venta">Vender si sube a</option></select></label>
+        <label>Precio objetivo (€)<input class="numin" id="oP" inputmode="decimal" placeholder="11,50"></label>
+        <label>Nota (opcional)<input id="oN" autocomplete="off" maxlength="60"></label>
+        <div class="actions" style="align-self:end"><button class="btn" type="button" id="oOk">Guardar</button></div>
+        <p class="err-msg" id="oErr" hidden></p>
+      </div>`:''}
+      ${objs.length?`<div class="mk-list">${filas}</div>`:'<p class="note">Fija tú el precio al que te interesaría comprar o vender un valor y la app te avisará en Resumen cuando se alcance.</p>'}
+      <p class="note">Los avisos se comprueban con los últimos precios cargados (unos 15–20 min de retraso) y solo los ves al abrir la app. La decisión de operar es siempre tuya.</p>
+    </div>
+  </details>`;
+}
+function wireObjetivos(){
+  const a=$('objAdd'); if(!a) return;
+  a.onclick=()=>{objForm=!objForm; render();};
+  document.querySelectorAll('[data-objx]').forEach(b=>b.onclick=()=>{store.objetivos=(store.objetivos||[]).filter(o=>o.id!==b.dataset.objx); if(!demo)guardar(); render(); toast('Objetivo quitado');});
+  const ok=$('oOk'); if(ok) ok.onclick=()=>{const err=$('oErr'); const t=$('oT').value.trim().toUpperCase(), p=toNum($('oP').value);
+    if(!t){err.textContent='Indica el valor.';err.hidden=false;return;}
+    if(!(p>0)){err.textContent='Indica el precio objetivo.';err.hidden=false;return;}
+    store.objetivos=[...(store.objetivos||[]),{id:'o'+uid(),t,tipo:$('oTipo').value==='venta'?'venta':'compra',precio:p,nota:$('oN').value.trim(),creado:todayStr()}];
+    objForm=false; if(!demo)guardar(); render(); toast('Objetivo guardado');};
+}
+function avisosObjetivos(){
+  return (store.objetivos||[]).map(o=>({o,e:estadoObjetivo(o)})).filter(x=>x.e.est==='alcanzado'||x.e.est==='cerca').map(({o,e})=>
+    e.est==='alcanzado'
+      ? `<li><b>Objetivo alcanzado · ${esc(nombre(o.t)||o.t)}</b> — cotiza a ${EUR40.format(e.p)} €, ${o.tipo==='compra'?'por debajo':'por encima'} de tu objetivo de ${o.tipo==='compra'?'compra':'venta'} (${EUR4.format(o.precio)} €).</li>`
+      : `<li class="info"><b>Cerca de tu objetivo · ${esc(nombre(o.t)||o.t)}</b> — cotiza a ${EUR40.format(e.p)} €, a menos de un 3 % de tu objetivo de ${o.tipo==='compra'?'compra':'venta'}.</li>`);
 }
 
 /* ---------- Motor de cálculo ---------- */
@@ -689,7 +821,9 @@ function normalizar(d){
   const hist=(d.hist&&typeof d.hist==='object')?d.hist:{};
   const cal=Array.isArray(d.cal)?d.cal.filter(x=>x&&x.t&&(x.ex||x.pago)):[];
   const calOcultos=Array.isArray(d.calOcultos)?d.calOcultos:[];
-  return {v:2,carteras,movs,precios,activa,hist,cal,calOcultos};
+  const objetivos=Array.isArray(d.objetivos)?d.objetivos.filter(o=>o&&o.t&&o.precio>0):[];
+  const limites=(d.limites&&typeof d.limites==='object')?d.limites:{};
+  return {v:2,carteras,movs,precios,activa,hist,cal,calOcultos,objetivos,limites};
 }
 function storeEjemplo(){ const e=ejemplo(); return normalizar({carteras:[{id:'c1',nombre:'Cartera de ejemplo',fiscal:'conjunto'}],movs:e.movs,precios:e.precios}); }
 function carteraDe(id){ return store.carteras.find(c=>c.id===id); }
@@ -847,7 +981,7 @@ function render(){
   $('valores').innerHTML = vals.map(v=>`<option value="${esc(v)}"></option>`).join('');
   if(tab==='resumen') renderResumen(R,hoy);
   if(tab==='movimientos') renderMovs(R);
-  if(tab==='cartera') renderCartera(R,hoy);
+  if(tab==='cartera'){ renderCartera(R,hoy); wireAnalisis(); }
   if(tab==='mercado') renderMercado(R,hoy);
   if(tab==='fiscal') renderFiscal(calcular(movsFiscales(),store.precios,hoy),hoy);
   if(tab==='copia'){ renderCopia(); wireCarteras(); }
@@ -877,6 +1011,8 @@ function renderResumen(R,hoy){
   R.errores.forEach(e=>alerts.push(`<li><b>Revisa:</b> ${esc(e)}</li>`));
   R.ventas.filter(v=>v.noComputable>0.005).forEach(v=>alerts.push(`<li><b>Regla de los dos meses · ${esc(v.valor)}</b> — venta con pérdida del ${fmtD(v.fecha)}: ${NUM.format(v.recompra)} de ${NUM.format(v.qty)} títulos se consideran recomprados. ${eur(v.noComputable)} de pérdida no se pueden computar ahora; se aplicarán automáticamente en el año en que vendas esos títulos.</li>`));
   R.ventas.filter(v=>v.gp<-0.005 && v.ventanaAbierta && v.noComputable < -v.gp-0.005).forEach(v=>alerts.push(`<li><b>Ventana abierta · ${esc(v.valor)}</b> — si compras ${esc(v.valor)} antes del ${fmtD(v.ventanaHasta)}, parte de la pérdida del ${fmtD(v.fecha)} (${eur(-v.gp)}) dejará de ser computable este año.</li>`));
+  avisosObjetivos().forEach(x=>alerts.push(x));
+  avisosConcentracion(R).forEach(x=>alerts.push(x));
   const proxDiv=proximosDividendos(hoy);
   proxDiv.filter(d=>R.posiciones.some(p=>p.valor===d.t)).forEach(d=>{const p=R.posiciones.find(x=>x.valor===d.t); alerts.push(`<li class="info"><b>Dividendo próximo · ${esc(nombre(d.t)||d.t)}</b> — ${esc(textoFecha(d))}${d.imp?`, ${EUR40.format(d.imp)} €/acción: cobrarías unos ${eur(p.qty*d.imp)} brutos`:''}${d.estado!=='confirmado'?' (estimado)':''}.</li>`);});
   if(proxDiv.length) alerts.push(`<li class="info">${proxDiv.length} empresas del IBEX tienen dividendo previsto en los próximos 3 meses. Míralos en <b>Mercado</b>.</li>`);
@@ -1132,6 +1268,7 @@ function renderCartera(R,hoy){
   const tot={coste:P.reduce((s,p)=>s+p.coste,0),merc:P.reduce((s,p)=>s+(isFinite(p.mercado)?p.mercado:0),0),lat:P.reduce((s,p)=>s+(isFinite(p.latente)?p.latente:0),0),div:P.reduce((s,p)=>s+p.divVal,0)};
   el.innerHTML = `
   <div style="display:flex;flex-direction:column;gap:16px">
+  ${panelAnalisis(R)}
   <div class="toolbar"><h2>Posiciones abiertas</h2>
     ${ajustes.csvUrl?`<div class="actions"><span class="muted" style="font-size:.82rem">${ajustes.ultimaAct?'Precios de las '+new Date(ajustes.ultimaAct).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' · retraso aprox. 15 min':'Sin actualizar todavía'}</span><button class="btn small" id="bAct" ${cargandoPrecios||demo?'disabled':''}>${cargandoPrecios?'Actualizando…':'Actualizar precios'}</button></div>`:`<button class="btn ghost small" id="bConf">Conectar precios automáticos</button>`}</div>
   ${errPrecios?`<p class="err-msg">${esc(errPrecios)}</p>`:''}
@@ -1192,9 +1329,13 @@ function renderMercado(R,hoy){
   <div style="display:flex;flex-direction:column;gap:14px">
     <div class="mk-head"><div><h2>IBEX 35</h2><p class="note">${ajustes.ultimaAct?'Precios de las '+new Date(ajustes.ultimaAct).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' · retraso aprox. 15–20 min':'Sin precios todavía'}</p></div><div class="actions">${ajustes.csvUrl?`<button class="btn small" id="mkAct" ${cargandoPrecios||demo?'disabled':''}>${cargandoPrecios?'Actualizando…':'Actualizar precios'}</button>`:`<button class="btn ghost small" id="mkConf">Conectar precios automáticos</button>`}</div></div>
     ${errPreciosMk()}
+    ${panelObjetivos()}
     ${panelCalendario(R,hoy)}
+    <details class="panel fold" data-fold="acc" ${fold.acc?'open':''}>
+    <summary><span class="fold-t">Cotizaciones del IBEX 35</span><span class="fold-s">${conVar.length?`<span class="pos">${suben} suben</span> · <span class="${bajan?'neg':''}">${bajan} bajan</span>`:'35 valores'}</span></summary>
+    <div class="fold-b">
     ${conPrecio?`
-    <div class="panel" style="gap:10px">
+    <div style="display:flex;flex-direction:column;gap:10px">
       <div class="mk-breadth">
         <div><span class="k">Suben</span><span class="v pos">${suben}</span></div>
         <div><span class="k">Bajan</span><span class="v ${bajan?'neg':''}">${bajan}</span></div>
@@ -1213,11 +1354,15 @@ function renderMercado(R,hoy){
       <button class="btn ghost small" data-reg="${esc(f.t)}" aria-label="Registrar operación de ${esc(f.n)}">Registrar</button>
     </div>`).join(''):'<div class="empty">Ningún valor coincide con la búsqueda.</div>'}</div>
     <p class="note">Composición del IBEX 35 a octubre de 2026. «Registrar» abre el formulario de movimiento con el valor y el precio actual rellenados. Esta app no compra ni vende: opera en tu bróker y anota aquí la operación.</p>
+    </div>
+    </details>
   </div>`;
   const q=$('mkQ'); q.oninput=()=>{mkQ=q.value;const pos=q.selectionStart;render();const n=$('mkQ');if(n){n.focus();try{n.setSelectionRange(pos,pos);}catch(e){}}};
   el.querySelectorAll('[data-ord]').forEach(b=>b.onclick=()=>{mkOrden=b.dataset.ord;render();});
   el.querySelectorAll('[data-reg]').forEach(b=>b.onclick=()=>{const t=b.dataset.reg;const x=state.precios[t];prefill={valor:t,precio:x&&x.p>0?x.p:'',fecha:todayStr()};tipoForm='compra';editId=null;borrarId=null;tab='movimientos';render();window.scrollTo({top:0,behavior:'smooth'});});
   wireCalendario();
+  wireObjetivos();
+  wireFolds();
   const ma=$('mkAct'); if(ma) ma.onclick=()=>actualizarPrecios(false);
   const mc=$('mkConf'); if(mc) mc.onclick=()=>{tab='copia';render();};
 }
@@ -1233,8 +1378,11 @@ function panelCalendario(R,hoy){
       <div class="px"><div>${d.imp?EUR40.format(d.imp)+' €/acc.':'—'}</div>${p&&isFinite(cobro)?`<div class="d">≈ ${eur(cobro)} brutos</div>`:''}</div>
       <button class="btn ghost small" type="button" data-calx="${esc(d.id)}" title="${usr.has(d.id)?'Eliminar':'Ocultar'} este aviso">${usr.has(d.id)?'Eliminar':'Ocultar'}</button>
     </div>`;}).join('');
-  return `<div class="panel" id="calPanel">
-    <div class="cv-head"><h2>Dividendos en los próximos 3 meses</h2><button class="btn ghost small" type="button" id="calAdd">${calForm?'Cerrar':'Añadir dividendo'}</button></div>
+  const nMios=prox.filter(d=>mios.has(d.t)).length;
+  return `<details class="panel fold" id="calPanel" data-fold="div" ${fold.div||calForm?'open':''}>
+    <summary><span class="fold-t">Dividendos en los próximos 3 meses</span><span class="fold-s">${prox.length} previstos${nMios&&!oculto?' · <b>'+nMios+' en tu cartera</b>':''}</span></summary>
+    <div class="fold-b">
+    <div class="actions"><button class="btn ghost small" type="button" id="calAdd">${calForm?'Cerrar formulario':'Añadir dividendo'}</button></div>
     ${calForm?`<div class="mov cal-form">
       <label>Valor<input id="cT" list="valores" autocomplete="off" placeholder="SAN"></label>
       <label>Fecha ex-dividendo<input type="date" id="cEx"></label>
@@ -1245,7 +1393,8 @@ function panelCalendario(R,hoy){
     </div>`:''}
     ${prox.length?`<div class="mk-list">${filas}</div>`:'<p class="note">No hay dividendos previstos en los próximos 3 meses en tu calendario.</p>'}
     <p class="note">Para cobrar un dividendo tienes que tener las acciones al cierre del día anterior a la fecha ex-dividendo. Datos recopilados el ${CAL_FECHA}: los «estimados» siguen el calendario habitual de cada empresa y pueden cambiar. Confírmalos en la web de la empresa o en tu bróker. Puedes añadir los que conozcas tú.</p>
-  </div>`;
+    </div>
+  </details>`;
 }
 function wireCalendario(){
   const a=$('calAdd'); if(!a) return;
