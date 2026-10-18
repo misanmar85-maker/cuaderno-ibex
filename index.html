@@ -197,6 +197,12 @@ nav.tabs svg{width:20px;height:20px;display:none}
 .nc-q legend{font-size:.82rem;color:var(--fg);font-weight:600;padding:0 4px}
 label.rad{flex-direction:row;align-items:center;gap:8px;font-size:.88rem;color:var(--fg);font-weight:400}
 label.rad input{width:auto;flex:none}
+.top-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.eye{display:inline-flex;align-items:center;gap:6px}
+.eye svg{width:18px;height:18px}
+.eye[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
+body.oculto .pos,body.oculto .neg{color:inherit!important}
+body.oculto .dbars,body.oculto .cv-bars,body.oculto .bars,body.oculto .chip.gan,body.oculto .chip.per,body.oculto .gl-sum,body.oculto .cv-leg{filter:blur(7px);pointer-events:none;user-select:none}
 @media (max-width:700px){
   .wrap{padding-block:14px calc(150px + env(safe-area-inset-bottom,0px))}
   h1{font-size:1.45rem}
@@ -231,7 +237,7 @@ label.rad input{width:auto;flex:none}
 <div class="wrap">
   <header class="top">
     <h1><small>Registro privado · Mercado continuo</small>Cartera de Inversiones</h1>
-    <div class="status" id="status"><span class="dot" id="statusDot"></span><span id="statusTxt">Cargando…</span></div>
+    <div class="top-right"><div class="status" id="status"><span class="dot" id="statusDot"></span><span id="statusTxt">Cargando…</span></div><button class="btn ghost small eye" id="btnOjo" type="button" aria-pressed="false"></button></div>
   </header>
   <div class="cart-bar" id="cartBar"></div>
 
@@ -260,19 +266,24 @@ label.rad input{width:auto;flex:none}
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '1.3 · 18/10/2026';
+const APP_VERSION = '1.4 · 18/10/2026';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
 const NOMBRES = Object.fromEntries(IBEX35);
 const nombre = t => NOMBRES[t] || '';
 let mkOrden='az', mkQ='', prefill=null;
 /* ---------- Utilidades ---------- */
 const EUR = new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:'always'});
-const EUR4 = new Intl.NumberFormat('es-ES',{minimumFractionDigits:2,maximumFractionDigits:4});
-const NUM = new Intl.NumberFormat('es-ES',{maximumFractionDigits:4});
+const EUR40 = new Intl.NumberFormat('es-ES',{minimumFractionDigits:2,maximumFractionDigits:4});
+const NUM0 = new Intl.NumberFormat('es-ES',{maximumFractionDigits:4});
+/* Modo privado: oculta importes, cantidades y rentabilidades en pantalla */
+let oculto=false; try{ oculto = localStorage.getItem('cartera-oculto')==='1'; }catch(e){}
+const MASK='•••••';
+const EUR4 = {format:v=>oculto?MASK:EUR40.format(v)};
+const NUM = {format:v=>oculto?'•••':NUM0.format(v)};
 const PCT = new Intl.NumberFormat('es-ES',{style:'percent',minimumFractionDigits:2,maximumFractionDigits:2});
-const eur = v => EUR.format(Math.abs(v)<0.005?0:v);
-const sgn = v => (v>0.005?'+':'') + eur(v);
-const pct = v => (isFinite(v)? (v>0?'+':'') + PCT.format(v) : '—');
+const eur = v => oculto? MASK+' €' : EUR.format(Math.abs(v)<0.005?0:v);
+const sgn = v => oculto? MASK+' €' : (v>0.005?'+':'') + eur(v);
+const pct = v => oculto? '••• %' : (isFinite(v)? (v>0?'+':'') + PCT.format(v) : '—');
 const cls = v => v>0.005?'pos':(v<-0.005?'neg':'');
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $ = id => document.getElementById(id);
@@ -322,22 +333,23 @@ function calcular(movs, precios, hoy){
   const lotes = {}; // valor -> [{fecha,qty,cpu}]
   const ventas = [], divs = [], errores = [];
   const comprasPorValor = {};
+  const difer = {};
   let comisiones = 0;
-  ord.forEach((mv,idx)=>{ if(mv.tipo==='compra'){(comprasPorValor[mv.valor]=comprasPorValor[mv.valor]||[]).push({fecha:mv.fecha,qty:mv.titulos,idx});} });
+  ord.forEach((mv,idx)=>{ if(mv.tipo==='compra'){(comprasPorValor[mv.valor]=comprasPorValor[mv.valor]||[]).push({fecha:mv.fecha,qty:mv.titulos,idx,mid:mv.id});} });
 
   ord.forEach((mv,idx)=>{
     const L = lotes[mv.valor] = lotes[mv.valor]||[];
     if(mv.tipo==='compra'){
       const coste = mv.titulos*mv.precio + (mv.gastos||0);
       comisiones += (mv.gastos||0);
-      L.push({fecha:mv.fecha,qty:mv.titulos,cpu:coste/mv.titulos,orig:mv.titulos});
+      L.push({fecha:mv.fecha,qty:mv.titulos,cpu:coste/mv.titulos,orig:mv.titulos,mid:mv.id});
     } else if(mv.tipo==='venta'){
       comisiones += (mv.gastos||0);
       let rest = mv.titulos, adq = 0, peso = 0; const usados=[];
       while(rest>1e-9 && L.length){
         const l=L[0]; const q=Math.min(rest,l.qty);
         adq += q*l.cpu; peso += q*l.cpu*days(l.fecha,mv.fecha);
-        usados.push({fecha:l.fecha,qty:q,cpu:l.cpu});
+        usados.push({fecha:l.fecha,qty:q,cpu:l.cpu,mid:l.mid});
         l.qty-=q; rest-=q; if(l.qty<=1e-9) L.shift();
       }
       const vendidas = mv.titulos-rest;
@@ -345,7 +357,7 @@ function calcular(movs, precios, hoy){
       const gp = transm-adq;
       const saldoTras = L.reduce((s,l)=>s+l.qty,0);
       const v = {mov:mv,idx,valor:mv.valor,fecha:mv.fecha,qty:vendidas,transm,adq,gp,usados,
-        diasMedio: adq>0? peso/adq : 0, saldoTras, faltan:rest>1e-9?rest:0,
+        diasMedio: adq>0? peso/adq : 0, saldoTras, faltan:rest>1e-9?rest:0, quedan:Object.fromEntries(L.map(l=>[l.mid,l.qty])), difInt:0, difDet:[], recompras:[],
         noComputable:0, recompra:0, ventanaHasta:addMonths(mv.fecha,2), ventanaAbierta:false};
       if(v.faltan) errores.push(`Venta de ${mv.valor} del ${fmtD(mv.fecha)}: vendes ${NUM.format(mv.titulos)} títulos pero solo tenías ${NUM.format(vendidas)} registrados.`);
       ventas.push(v);
@@ -369,7 +381,23 @@ function calcular(movs, precios, hoy){
     v.recompra = rec;
     v.noComputable = -v.gp * (rec/v.qty);
     v.ventanaAbierta = hasta >= hoy;
+    /* La pérdida no computable queda ligada a los títulos recomprados y se integra cuando se vendan (art. 33.5.f LIRPF) */
+    if(rec>1e-9){
+      const porAcc=v.noComputable/rec; let capA=Math.min(recAntes,rec), rem=rec;
+      const asignar=(c,q)=>{const d=difer[c.mid]=difer[c.mid]||{valor:v.valor,fecha:c.fecha,mid:c.mid,titulos:0,importe:0,restantes:0,desde:v.idx};
+        d.titulos+=q; d.importe+=q*porAcc; d.restantes+=q; d.desde=Math.min(d.desde,v.idx); v.recompras.push({fecha:c.fecha,qty:q});};
+      compras.filter(c=>c.idx<v.idx&&c.fecha>=desde).sort((a,b)=>b.idx-a.idx).forEach(c=>{
+        if(capA<=1e-9) return; const libre=(v.quedan[c.mid]||0)-((difer[c.mid]||{}).titulos||0); const q=Math.min(capA,libre);
+        if(q>1e-9){asignar(c,q);capA-=q;rem-=q;} });
+      compras.filter(c=>c.idx>v.idx&&c.fecha<=hasta).sort((a,b)=>a.idx-b.idx).forEach(c=>{
+        if(rem<=1e-9) return; const libre=c.qty-((difer[c.mid]||{}).titulos||0); const q=Math.min(rem,libre);
+        if(q>1e-9){asignar(c,q);rem-=q;} });
+    }
   });
+  /* Integración de pérdidas aplazadas al vender los títulos recomprados */
+  ventas.forEach(v=>{ v.usados.forEach(u=>{ const d=difer[u.mid]; if(!d||d.restantes<=1e-9||v.idx<=d.desde) return;
+    const q=Math.min(u.qty,d.restantes); const imp=q*d.importe/d.titulos; d.restantes-=q; v.difInt+=imp; v.difDet.push({fecha:d.fecha,qty:q,importe:imp}); }); });
+  const diferidas=Object.values(difer).filter(d=>d.restantes>1e-9).map(d=>({valor:d.valor,fecha:d.fecha,titulos:d.restantes,importe:d.restantes*d.importe/d.titulos}));
 
   /* Posiciones abiertas */
   const posiciones = [];
@@ -417,8 +445,8 @@ function calcular(movs, precios, hoy){
 
   /* Por año fiscal */
   const anios = {};
-  const A = y => anios[y] = anios[y] || {anio:y,ventas:[],divs:[],gan:0,per:0,noComp:0,divBruto:0,divRet:0};
-  ventas.forEach(v=>{const a=A(v.fecha.slice(0,4)); a.ventas.push(v); if(v.gp>=0) a.gan+=v.gp; else {a.per+=v.gp+v.noComputable; a.noComp+=v.noComputable;}});
+  const A = y => anios[y] = anios[y] || {anio:y,ventas:[],divs:[],gan:0,per:0,noComp:0,difInt:0,divBruto:0,divRet:0};
+  ventas.forEach(v=>{const a=A(v.fecha.slice(0,4)); a.ventas.push(v); if(v.gp>=0) a.gan+=v.gp; else {a.per+=v.gp+v.noComputable; a.noComp+=v.noComputable;} if(v.difInt>0){a.per-=v.difInt; a.difInt+=v.difInt;}});
   divs.forEach(d=>{const a=A(d.fecha.slice(0,4)); a.divs.push(d); a.divBruto+=d.bruto; a.divRet+=d.ret;});
   /* Arrastre de saldos negativos de G/P de los 4 ejercicios anteriores (art. 49 LIRPF), del más antiguo al más reciente */
   let arrastre = []; // [{anio, importe}]
@@ -442,7 +470,7 @@ function calcular(movs, precios, hoy){
     a.arrastreSiguiente = arrastre.reduce((s,x)=>s+x.importe,0);
   });
 
-  return {ord,ventas,divs,posiciones,errores,realizado,latente,sinPrecio,divBruto,divRet,totalCompras,costeVendido,costeVivo,mercado,total,diasMedio,capitalMedio,tir,anios,comisiones,primera};
+  return {diferidas,ord,ventas,divs,posiciones,errores,realizado,latente,sinPrecio,divBruto,divRet,totalCompras,costeVendido,costeVivo,mercado,total,diasMedio,capitalMedio,tir,anios,comisiones,primera};
 }
 
 function xirr(fl){
@@ -659,7 +687,7 @@ function renderResumen(R,hoy){
   const pctCapMedio = R.capitalMedio>0? R.total/R.capitalMedio : NaN;
   const alerts=[];
   R.errores.forEach(e=>alerts.push(`<li><b>Revisa:</b> ${esc(e)}</li>`));
-  R.ventas.filter(v=>v.noComputable>0.005).forEach(v=>alerts.push(`<li><b>Regla de los dos meses · ${esc(v.valor)}</b> — venta con pérdida del ${fmtD(v.fecha)}: ${NUM.format(v.recompra)} de ${NUM.format(v.qty)} títulos se consideran recomprados. ${eur(v.noComputable)} de pérdida no se pueden computar ahora; se integrarán cuando vendas esos títulos.</li>`));
+  R.ventas.filter(v=>v.noComputable>0.005).forEach(v=>alerts.push(`<li><b>Regla de los dos meses · ${esc(v.valor)}</b> — venta con pérdida del ${fmtD(v.fecha)}: ${NUM.format(v.recompra)} de ${NUM.format(v.qty)} títulos se consideran recomprados. ${eur(v.noComputable)} de pérdida no se pueden computar ahora; se aplicarán automáticamente en el año en que vendas esos títulos.</li>`));
   R.ventas.filter(v=>v.gp<-0.005 && v.ventanaAbierta && v.noComputable < -v.gp-0.005).forEach(v=>alerts.push(`<li><b>Ventana abierta · ${esc(v.valor)}</b> — si compras ${esc(v.valor)} antes del ${fmtD(v.ventanaHasta)}, parte de la pérdida del ${fmtD(v.fecha)} (${eur(-v.gp)}) dejará de ser computable este año.</li>`));
   const viejos = R.posiciones.filter(p=>p.fechaPrecio && days(p.fechaPrecio,hoy)>7).map(p=>p.valor);
   if(R.sinPrecio.length) alerts.push(`<li class="info">Sin precio actual para ${R.sinPrecio.map(esc).join(', ')}: se valora a coste. Actualízalo en <b>Cartera</b> o conecta los precios automáticos en <b>Ajustes</b>.</li>`);
@@ -677,6 +705,7 @@ function renderResumen(R,hoy){
   const cvMax = Math.max(1,...P.map(p=>Math.max(p.coste, isFinite(p.mercado)?p.mercado:0)));
   const recup = p => { if(!isFinite(p.precio)) return 'sin precio actual: introdúcelo en Cartera';
     const base = 'precio medio '+eur(p.pm)+' · actual '+eur(p.precio);
+    if(oculto) return base;
     return p.precio < p.pm ? base+' · necesita subir '+pct(p.pm/p.precio-1).replace('+','')+' para recuperar' : base+' · margen '+pct(1-p.pm/p.precio).replace('+','')+' sobre tu precio medio'; };
   const cartActual = !P.length ? `<div class="panel"><h2>Cartera actual</h2><p class="note">No tienes posiciones abiertas ahora mismo.</p></div>` : `
   <div class="panel">
@@ -684,7 +713,7 @@ function renderResumen(R,hoy){
     <div class="cv-sum">
       <div><span class="k">Pagaste</span><span class="v">${eur(cvCoste)}</span><span class="s muted">con comisiones</span></div>
       <div><span class="k">Vale hoy</span><span class="v">${eur(cvValor)}</span><span class="s muted">${P.length} valor${P.length===1?'':'es'}</span></div>
-      <div><span class="k">${cvLat>=0?'Ganas':'Pierdes'}</span><span class="v ${cls(cvLat)}">${sgn(cvLat)}</span><span class="s ${cls(cvLat)}">${cvCoste?pct(cvLat/cvCoste):'—'}</span></div>
+      <div><span class="k">${oculto?'Resultado':cvLat>=0?'Ganas':'Pierdes'}</span><span class="v ${cls(cvLat)}">${sgn(cvLat)}</span><span class="s ${cls(cvLat)}">${cvCoste?pct(cvLat/cvCoste):'—'}</span></div>
     </div>
     <div class="cv-leg" aria-hidden="true"><span><i style="background:var(--muted)"></i>Lo que pagaste</span><span><i style="background:var(--gain)"></i>Vale hoy (beneficio)</span><span><i style="background:var(--loss)"></i>Vale hoy (pérdida)</span></div>
     <div class="cv-list">${P.map(p=>{const ok=isFinite(p.mercado);return `<div class="cv-row">
@@ -932,7 +961,7 @@ function renderCartera(R,hoy){
 function renderMercado(R,hoy){
   const el=$('v-mercado');
   const mios=new Set(R.posiciones.map(p=>p.valor));
-  const filas=IBEX35.map(([t,n])=>{const x=state.precios[t];return {t,n,p:x&&x.p>0?x.p:NaN,v:x&&x.v!=null&&isFinite(x.v)?x.v:NaN,f:x?x.f:'',mio:mios.has(t)};});
+  const filas=IBEX35.map(([t,n])=>{const x=state.precios[t];return {t,n,p:x&&x.p>0?x.p:NaN,v:x&&x.v!=null&&isFinite(x.v)?x.v:NaN,f:x?x.f:'',mio:!oculto&&mios.has(t)};});
   const conPrecio=filas.filter(f=>isFinite(f.p)).length;
   const conVar=filas.filter(f=>isFinite(f.v));
   const suben=conVar.filter(f=>f.v>0.0001).length, bajan=conVar.filter(f=>f.v<-0.0001).length, igual=conVar.length-suben-bajan;
@@ -941,7 +970,7 @@ function renderMercado(R,hoy){
   if(mkQ){const q=mkQ.toLowerCase();lista=lista.filter(f=>f.t.toLowerCase().includes(q)||f.n.toLowerCase().includes(q));}
   const cmp={az:(a,b)=>a.n.localeCompare(b.n,'es'),suben:(a,b)=>(isFinite(b.v)?b.v:-1e9)-(isFinite(a.v)?a.v:-1e9),bajan:(a,b)=>(isFinite(a.v)?a.v:1e9)-(isFinite(b.v)?b.v:1e9)}[mkOrden];
   lista=lista.slice().sort(cmp);
-  const pctV=v=>isFinite(v)?(v>0?'+':'')+NUM.format(Math.round(v*100)/100)+' %':'—';
+  const pctV=v=>isFinite(v)?(v>0?'+':'')+NUM0.format(Math.round(v*100)/100)+' %':'—';
   el.innerHTML=`
   <div style="display:flex;flex-direction:column;gap:14px">
     <div class="mk-head"><div><h2>IBEX 35</h2><p class="note">${ajustes.ultimaAct?'Precios de las '+new Date(ajustes.ultimaAct).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' · retraso aprox. 15–20 min':'Sin precios todavía'}</p></div><div class="actions">${ajustes.csvUrl?`<button class="btn small" id="mkAct" ${cargandoPrecios||demo?'disabled':''}>${cargandoPrecios?'Actualizando…':'Actualizar precios'}</button>`:`<button class="btn ghost small" id="mkConf">Conectar precios automáticos</button>`}</div></div>
@@ -962,7 +991,7 @@ function renderMercado(R,hoy){
     </div>
     <div class="mk-list">${lista.length?lista.map(f=>`<div class="mk-row${f.mio?' mine':''}">
       <div class="nm"><span class="full">${esc(f.n)}</span>${f.mio?' <span class="chip mine">En cartera</span>':''}<small>${esc(f.t)} · BME</small></div>
-      <div class="px"><div>${isFinite(f.p)?EUR4.format(f.p)+' €':'—'}</div><div class="d ${cls(f.v)}">${pctV(f.v)}</div></div>
+      <div class="px"><div>${isFinite(f.p)?EUR40.format(f.p)+' €':'—'}</div><div class="d ${cls(f.v)}">${pctV(f.v)}</div></div>
       <button class="btn ghost small" data-reg="${esc(f.t)}" aria-label="Registrar operación de ${esc(f.n)}">Registrar</button>
     </div>`).join(''):'<div class="empty">Ningún valor coincide con la búsqueda.</div>'}</div>
     <p class="note">Composición del IBEX 35 a octubre de 2026. «Registrar» abre el formulario de movimiento con el valor y el precio actual rellenados. Esta app no compra ni vende: opera en tu bróker y anota aquí la operación.</p>
@@ -999,8 +1028,10 @@ function renderFiscal(R,hoy){
         <dt>Ganancias</dt><dd class="pos">${sgn(a.gan)}</dd>
         <dt>Pérdidas computables</dt><dd class="neg">${sgn(a.per)}</dd>
         <dt class="total">Saldo neto</dt><dd class="total ${cls(a.saldoGP)}">${sgn(a.saldoGP)}</dd>
+        ${a.difInt>0.005?`<dt>Incluye pérdidas aplazadas de años o ventas anteriores que se aplican ahora</dt><dd class="neg">−${eur(a.difInt)}</dd>`:''}
         ${a.noComp>0.005?`<dt>Pérdidas no computables por recompra (regla de los dos meses)</dt><dd class="muted">${eur(a.noComp)}</dd>`:''}
       </dl>
+      ${R.diferidas.length?`<p class="note"><b>Pérdidas aplazadas pendientes:</b> ${R.diferidas.map(d=>`${esc(nombre(d.valor)||d.valor)} ${eur(d.importe)}, se aplicará al vender los ${NUM.format(d.titulos)} títulos comprados el ${fmtD(d.fecha)}`).join('; ')}.</p>`:''}
       <p class="note">En la declaración, cada venta va con su valor de transmisión y su valor de adquisición. La tabla de abajo te da ambos importes, ya con comisiones.</p>
     </div>
     <div class="panel">
@@ -1023,21 +1054,22 @@ function renderFiscal(R,hoy){
       <dt class="total">Base del ahorro estimada</dt><dd class="total">${eur(a.base)}</dd>
       <dt>Cuota estimada (escala del ahorro 19–30 %)</dt><dd>${eur(a.cuota)}</dd>
       <dt>Menos retenciones ya soportadas</dt><dd>−${eur(a.divRet)}</dd>
-      <dt class="total">${a.resultado>=0?'A pagar por estas inversiones (aprox.)':'A devolver por estas inversiones (aprox.)'}</dt><dd class="total ${a.resultado>=0?'neg':'pos'}">${eur(Math.abs(a.resultado))}</dd>
+      <dt class="total">${oculto?'Resultado estimado de estas inversiones':a.resultado>=0?'A pagar por estas inversiones (aprox.)':'A devolver por estas inversiones (aprox.)'}</dt><dd class="total ${a.resultado>=0?'neg':'pos'}">${eur(Math.abs(a.resultado))}</dd>
       ${a.arrastreSiguiente>0.005?`<dt>Pérdidas pendientes de compensar en años siguientes</dt><dd>${eur(a.arrastreSiguiente)}</dd>`:''}
     </dl>
     <p class="note"><b>Es una estimación orientativa, no tu declaración.</b> Solo tiene en cuenta lo registrado aquí, incluidas las pérdidas de años anteriores que estén registradas (con un plazo de 4 años). No incluye intereses de cuentas, fondos, otras ganancias ni la escala de País Vasco y Navarra. La cifra real depende de toda tu base del ahorro.</p>
   </div>
   <h2>Detalle de ventas</h2>
   <div class="tbl"><table>
-    <thead><tr><th>Fecha venta</th><th>Valor</th><th class="n">Títulos</th><th class="n">Valor transmisión</th><th class="n">Valor adquisición</th><th>Fechas de compra (FIFO)</th><th class="n">Ganancia / pérdida</th><th class="n">No computable</th><th class="n">Días medio</th></tr></thead>
+    <thead><tr><th>Fecha venta</th><th>Valor</th><th class="n">Títulos</th><th class="n">Valor transmisión</th><th class="n">Valor adquisición</th><th>Fechas de compra (FIFO)</th><th class="n">Ganancia / pérdida</th><th class="n">No computable</th><th class="n">Aplazada que se aplica</th><th class="n">Días medio</th></tr></thead>
     <tbody>${a.ventas.length? a.ventas.map(v=>`<tr>
       <td class="n">${fmtD(v.fecha)}</td><td><b>${esc(v.valor)}</b>${nombre(v.valor)?`<div class="muted" style="font-size:.78rem">${esc(nombre(v.valor))}</div>`:''}</td><td class="n">${NUM.format(v.qty)}</td>
       <td class="n">${eur(v.transm)}</td><td class="n">${eur(v.adq)}</td>
       <td style="white-space:normal;min-width:180px">${v.usados.map(u=>`${NUM.format(u.qty)} del ${fmtD(u.fecha)}`).join('<br>')}</td>
       <td class="n ${cls(v.gp)}">${sgn(v.gp)}</td>
       <td class="n">${v.noComputable>0.005?`<span class="chip warn">${eur(v.noComputable)}</span>`:'—'}</td>
-      <td class="n">${Math.round(v.diasMedio)}</td></tr>`).join('') : `<tr><td colspan="9" class="empty">Sin ventas en ${anioFiscal}.</td></tr>`}</tbody>
+      <td class="n">${v.difInt>0.005?`<span class="chip compra" title="${esc(v.difDet.map(x=>NUM.format(x.qty)+' títulos comprados el '+fmtD(x.fecha)).join('; '))}">−${eur(v.difInt)}</span>`:'—'}</td>
+      <td class="n">${Math.round(v.diasMedio)}</td></tr>`).join('') : `<tr><td colspan="10" class="empty">Sin ventas en ${anioFiscal}.</td></tr>`}</tbody>
   </table></div>
   ${a.divs.length?`<h2>Detalle de dividendos</h2>
   <div class="tbl"><table><thead><tr><th>Fecha</th><th>Valor</th><th class="n">Bruto</th><th class="n">Retención</th><th class="n">Neto</th></tr></thead>
@@ -1080,7 +1112,8 @@ function cargarXLSX(){
     document.head.appendChild(s);});
   return xlsxP;
 }
-function construirExcel(X,R,hoy){
+function construirExcel(X,R,hoy){ const _oc=oculto; oculto=false; try{ return construirExcel0(X,R,hoy); } finally { oculto=_oc; } }
+function construirExcel0(X,R,hoy){
   const wb=X.utils.book_new();
   const FE='#,##0.00 "€"', FN='#,##0.####', FD='dd/mm/yyyy', FP='0.00%';
   const fecha=s=>{const [y,m,d]=s.split('-').map(Number);return Math.round((Date.UTC(y,m-1,d)-Date.UTC(1899,11,30))/86400000);};
@@ -1121,11 +1154,14 @@ function construirExcel(X,R,hoy){
 
   /* 2. Ventas para la declaración */
   hoja('Ventas para la renta',
-    ['Año','Fecha venta','Valor','Entidad emisora','ISIN','Títulos','Valor de transmisión (€)','Valor de adquisición (€)','Ganancia / pérdida (€)','No computable 2 meses (€)','Computable este año (€)','Días medio invertido','Compras asignadas (FIFO)'],
-    R.ventas.map(v=>[Number(v.fecha.slice(0,4)),fecha(v.fecha),v.valor,nombre(v.valor)||v.valor,v.mov.isin||'',v.qty,r2(v.transm),r2(v.adq),r2(v.gp),r2(v.noComputable),r2(v.gp+v.noComputable),Math.round(v.diasMedio),v.usados.map(u=>NUM.format(u.qty)+' del '+fmtD(u.fecha)).join('; ')]),
-    {1:FD,5:FN,6:FE,7:FE,8:FE,9:FE,10:FE},[7,12,8,28,14,9,16,16,15,15,15,10,40],{6:1,7:1,8:1,9:1,10:1},
+    ['Año','Fecha venta','Valor','Entidad emisora','ISIN','Títulos','Valor de transmisión (€)','Valor de adquisición (€)','Ganancia / pérdida (€)','No computable 2 meses (€)','Pérdida aplazada que se aplica ahora (€)','Computable este año (€)','Días medio invertido','Compras asignadas (FIFO)'],
+    R.ventas.map(v=>[Number(v.fecha.slice(0,4)),fecha(v.fecha),v.valor,nombre(v.valor)||v.valor,v.mov.isin||'',v.qty,r2(v.transm),r2(v.adq),r2(v.gp),r2(v.noComputable),v.difInt>0.005?r2(-v.difInt):0,r2(v.gp+v.noComputable-v.difInt),Math.round(v.diasMedio),v.usados.map(u=>NUM.format(u.qty)+' del '+fmtD(u.fecha)).join('; ')]),
+    {1:FD,5:FN,6:FE,7:FE,8:FE,9:FE,10:FE,11:FE},[7,12,8,28,14,9,16,16,15,15,18,15,10,40],{6:1,7:1,8:1,9:1,10:1,11:1},
     ['Valor de transmisión = precio de venta × títulos − gastos de venta. Valor de adquisición = precio de compra × títulos + gastos de compra (criterio FIFO, art. 37.2 LIRPF).',
-     'No computable: pérdida que no se puede aplicar este año por recompra en los 2 meses anteriores o posteriores (art. 33.5.f LIRPF). Se integra al vender los títulos recomprados.', AVISO]);
+     'No computable: pérdida que no se puede aplicar este año por recompra en los 2 meses anteriores o posteriores (art. 33.5.f LIRPF).',
+     'Pérdida aplazada que se aplica ahora: pérdida no computable de una venta anterior que se integra al vender los títulos recomprados.',
+     ...(R.diferidas.length?['Pérdidas aplazadas pendientes de aplicar: '+R.diferidas.map(d=>d.valor+' '+EUR.format(d.importe)+' ('+NUM.format(d.titulos)+' títulos comprados el '+fmtD(d.fecha)+')').join('; ')]:[]),
+     AVISO]);
 
   /* 3. Dividendos */
   hoja('Dividendos',
@@ -1257,6 +1293,11 @@ function renderCopia(){
   };
 }
 
+function pintarOjo(){ document.body.classList.toggle('oculto',oculto); const b=$('btnOjo'); if(!b) return; b.setAttribute('aria-pressed',String(oculto));
+  b.innerHTML=(oculto?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c5 0 9 4.5 10 7a13 13 0 0 1-3.2 4.3M6.3 6.4A13 13 0 0 0 2 12c1 2.5 5 7 10 7a9.6 9.6 0 0 0 4.4-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>Mostrar':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12c1-2.5 5-7 10-7s9 4.5 10 7c-1 2.5-5 7-10 7S3 14.5 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Ocultar');
+  b.title=oculto?'Mostrar importes':'Ocultar importes y cantidades'; }
+$('btnOjo').onclick=()=>{ oculto=!oculto; try{localStorage.setItem('cartera-oculto',oculto?'1':'0');}catch(e){} pintarOjo(); render(); toast(oculto?'Importes ocultos':'Importes visibles'); };
+pintarOjo();
 $('fab').onclick=()=>{tab='movimientos';editId=null;prefill=null;borrarId=null;render();window.scrollTo({top:0,behavior:'smooth'});const f=$('fValor');if(f)f.focus();};
 $('tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(!b)return;tab=b.dataset.tab;editId=null;borrarId=null;prefill=null;render();});
 
