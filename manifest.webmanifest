@@ -1,7 +1,7 @@
 {
-  "name": "Cuaderno IBEX",
-  "short_name": "Cuaderno IBEX",
-  "description": "Registro privado de inversiones en el IBEX 35: cartera, dividendos, rentabilidad y estimación para la renta.",
+  "name": "Cartera de Inversiones",
+  "short_name": "Inversiones",
+  "description": "Registro privado de inversiones en bolsa española: carteras, dividendos, rentabilidad y estimación para la renta.",
   "lang": "es",
   "start_url": "./",
   "scope": "./",

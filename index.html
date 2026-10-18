@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Cuaderno IBEX</title>
+<title>Cartera de Inversiones</title>
 <meta name="theme-color" content="#1d5c7a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Cuaderno IBEX">
+<meta name="apple-mobile-web-app-title" content="Inversiones">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png" type="image/png">
@@ -185,6 +185,18 @@ nav.tabs svg{width:20px;height:20px;display:none}
 .mk-row .px{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;line-height:1.25}
 .mk-row .px .d{font-size:.82rem}
 .chip.mine{background:var(--accent);color:var(--surface)}
+.cart-bar{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;padding:8px 12px;background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.cart-bar .cb-l{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.cart-bar select{width:auto;flex:1 1 200px;max-width:420px}
+.cart-bar .cb-n{flex:1 1 auto}
+.cart-list{display:flex;flex-direction:column;gap:8px}
+.cart-item{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.5fr) auto auto;gap:8px;align-items:center}
+.cart-item .cnt{font-size:.8rem;white-space:nowrap}
+.cart-new{display:flex;flex-direction:column;gap:10px;max-width:560px}
+.nc-q{border:1px solid var(--line);border-radius:5px;padding:8px 12px 10px;margin:0;display:flex;flex-direction:column;gap:8px}
+.nc-q legend{font-size:.82rem;color:var(--fg);font-weight:600;padding:0 4px}
+label.rad{flex-direction:row;align-items:center;gap:8px;font-size:.88rem;color:var(--fg);font-weight:400}
+label.rad input{width:auto;flex:none}
 @media (max-width:700px){
   .wrap{padding-block:14px calc(150px + env(safe-area-inset-bottom,0px))}
   h1{font-size:1.45rem}
@@ -204,6 +216,8 @@ nav.tabs svg{width:20px;height:20px;display:none}
   .dbar,.dbar-axis{grid-template-columns:44px minmax(0,1fr) 92px;gap:4px 8px}
   .cv-row{grid-template-columns:44px minmax(0,1fr) 96px;gap:4px 8px}
   .mk-row{padding:10px 12px;gap:4px 10px}
+  .cart-item{grid-template-columns:minmax(0,1fr) auto auto}
+  .cart-item select{grid-column:1/-1;grid-row:2}
   .mk-tools input{max-width:none}
   nav.tabs button{font-size:.64rem}
   .cv-sum{grid-template-columns:1fr 1fr}
@@ -216,9 +230,10 @@ nav.tabs svg{width:20px;height:20px;display:none}
 <body>
 <div class="wrap">
   <header class="top">
-    <h1><small>Registro privado · Mercado continuo</small>Cuaderno IBEX</h1>
+    <h1><small>Registro privado · Mercado continuo</small>Cartera de Inversiones</h1>
     <div class="status" id="status"><span class="dot" id="statusDot"></span><span id="statusTxt">Cargando…</span></div>
   </header>
+  <div class="cart-bar" id="cartBar"></div>
 
   <div id="banner"></div>
 
@@ -245,7 +260,7 @@ nav.tabs svg{width:20px;height:20px;display:none}
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '1.1 · 18/10/2026';
+const APP_VERSION = '1.3 · 18/10/2026';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
 const NOMBRES = Object.fromEntries(IBEX35);
 const nombre = t => NOMBRES[t] || '';
@@ -445,6 +460,89 @@ function xirr(fl){
 
 /* ---------- Estado y almacenamiento ---------- */
 let state = {movs:[],precios:{}};
+/* ---------- Varias carteras ---------- */
+function nuevoStore(){ return {v:2, carteras:[{id:'c1',nombre:'Cartera principal',fiscal:'conjunto'}], movs:[], precios:{}, activa:'c1'}; }
+let store = nuevoStore();
+let borrarCart = null;
+function normalizar(d){
+  if(!d||typeof d!=='object') return null;
+  const precios=(d.precios&&typeof d.precios==='object')?d.precios:{};
+  const carteras=(Array.isArray(d.carteras)&&d.carteras.length)
+    ? d.carteras.filter(c=>c&&c.id).map(c=>({id:String(c.id),nombre:String(c.nombre||'Cartera').slice(0,40),fiscal:c.fiscal==='independiente'?'independiente':'conjunto'}))
+    : [{id:'c1',nombre:'Cartera principal',fiscal:'conjunto'}];
+  const ids=new Set(carteras.map(c=>c.id));
+  const movs=(Array.isArray(d.movs)?d.movs:[]).filter(m=>m&&/^\d{4}-\d{2}-\d{2}$/.test(m.fecha)&&['compra','venta','dividendo'].includes(m.tipo)&&m.valor)
+    .map((m,i)=>({id:m.id||uid(),seq:m.seq||i+1,tipo:m.tipo,fecha:m.fecha,valor:String(m.valor).toUpperCase(),isin:m.isin||'',titulos:+m.titulos||0,precio:+m.precio||0,gastos:+m.gastos||0,bruto:+m.bruto||0,retencion:+m.retencion||0,nota:m.nota||'',cartera:ids.has(String(m.cartera))?String(m.cartera):carteras[0].id}));
+  const activa=(d.activa==='todas'&&carteras.length>1)||ids.has(d.activa)?d.activa:carteras[0].id;
+  return {v:2,carteras,movs,precios,activa};
+}
+function storeEjemplo(){ const e=ejemplo(); return normalizar({carteras:[{id:'c1',nombre:'Cartera de ejemplo',fiscal:'conjunto'}],movs:e.movs,precios:e.precios}); }
+function carteraDe(id){ return store.carteras.find(c=>c.id===id); }
+function enVista(m){ return store.activa==='todas'||m.cartera===store.activa; }
+function sincronizar(){ if(store.activa!=='todas'&&!carteraDe(store.activa)) store.activa=store.carteras[0]?store.carteras[0].id:'c1'; state={movs:store.movs.filter(enVista),precios:store.precios}; }
+function grupoFiscal(){
+  const act=store.activa==='todas'?null:carteraDe(store.activa);
+  if(act&&act.fiscal==='independiente') return {nombre:act.nombre,ids:[act.id],indep:true};
+  const ids=store.carteras.filter(c=>c.fiscal!=='independiente').map(c=>c.id);
+  return {nombre:ids.map(id=>carteraDe(id).nombre).join(' + ')||'—',ids,indep:false};
+}
+function movsFiscales(){ const g=grupoFiscal(); return store.movs.filter(m=>g.ids.includes(m.cartera)); }
+function cartDefault(ed){ if(ed&&carteraDe(ed.cartera)) return ed.cartera; return store.activa!=='todas'&&carteraDe(store.activa)?store.activa:store.carteras[0].id; }
+function renderCartBar(){
+  const el=$('cartBar'); if(!el) return;
+  if(!store.carteras.length){el.innerHTML='';return;}
+  const multi=store.carteras.length>1;
+  el.innerHTML=`<span class="cb-l">Cartera</span>${multi?`<select id="selCart" aria-label="Cartera que estás viendo">${store.carteras.map(c=>`<option value="${esc(c.id)}" ${c.id===store.activa?'selected':''}>${esc(c.nombre)}${c.fiscal==='independiente'?' · independiente':''}</option>`).join('')}<option value="todas" ${store.activa==='todas'?'selected':''}>Todas las carteras</option></select>`:`<b class="cb-n">${esc(store.carteras[0].nombre)}</b>`}<button class="btn ghost small" id="cbGest" type="button">${multi?'Gestionar':'Renombrar o añadir'}</button>`;
+  const s=$('selCart'); if(s) s.onchange=()=>{store.activa=s.value;editId=null;borrarId=null;if(!demo)guardar();render();};
+  $('cbGest').onclick=()=>{tab='copia';render();setTimeout(()=>{const p=$('carterasPanel');if(p)p.scrollIntoView({behavior:'smooth',block:'start'});},60);};
+}
+function infoFiscal(){
+  if(store.carteras.length<2) return '';
+  const g=grupoFiscal(); const indep=store.carteras.filter(c=>c.fiscal==='independiente'&&!g.ids.includes(c.id));
+  return `<div class="banner"><p>Cálculo fiscal de: <b>${esc(g.nombre)}</b>${g.indep?' (cartera independiente, calculada por separado)':g.ids.length>1?' — carteras del mismo titular, calculadas juntas (FIFO y regla de los dos meses sobre todas)':''}.${indep.length?' Las carteras independientes ('+indep.map(c=>'«'+esc(c.nombre)+'»').join(', ')+') se calculan aparte: elígelas en el selector de cartera.':''}</p></div>`;
+}
+function panelCarteras(){
+  if(demo) return `<div class="panel" id="carterasPanel" style="margin-bottom:16px"><h2>Carteras</h2><p class="note">Pulsa «Empezar con mi cartera» en el aviso de arriba para crear y nombrar tus carteras.</p></div>`;
+  const cuenta=id=>store.movs.filter(m=>m.cartera===id).length;
+  return `<div class="panel" id="carterasPanel" style="margin-bottom:16px">
+    <h2>Carteras</h2>
+    <p class="note">Las carteras del <b>mismo titular</b> se calculan juntas en Fiscal: Hacienda aplica el FIFO y la regla de los dos meses a todas tus acciones, estén en el bróker que estén. Las <b>independientes</b> (por ejemplo, de otra persona) tienen su propio cálculo.</p>
+    <div class="cart-list">${store.carteras.map(c=>`<div class="cart-item">
+      <input id="cn-${esc(c.id)}" data-cn="${esc(c.id)}" value="${esc(c.nombre)}" maxlength="40" aria-label="Nombre de la cartera">
+      <select id="cf-${esc(c.id)}" data-cf="${esc(c.id)}" aria-label="Cálculo fiscal de ${esc(c.nombre)}"><option value="conjunto" ${c.fiscal!=='independiente'?'selected':''}>Mismo titular · fiscal conjunto</option><option value="independiente" ${c.fiscal==='independiente'?'selected':''}>Independiente · fiscal separado</option></select>
+      <span class="muted cnt">${cuenta(c.id)} mov.</span>
+      ${store.carteras.length>1?`<button class="btn ghost small" type="button" data-cdel="${esc(c.id)}">Eliminar</button>`:'<span></span>'}
+    </div>${borrarCart===c.id?`<div class="confirm"><span>Se eliminará «${esc(c.nombre)}» y sus ${cuenta(c.id)} movimientos. No se puede deshacer.</span><button class="btn danger small" type="button" id="cdSi">Eliminar cartera</button><button class="btn ghost small" type="button" id="cdNo">Cancelar</button></div>`:''}`).join('')}</div>
+    <p class="note">Para cambiar el nombre, edítalo y pulsa fuera del campo.</p>
+    <h3>Nueva cartera</h3>
+    <div class="cart-new">
+      <label>Nombre<input id="ncNom" maxlength="40" placeholder="Por ejemplo: ING o Cartera de Ana" autocomplete="off"></label>
+      <fieldset class="nc-q"><legend>¿Es del mismo titular que tus otras carteras?</legend>
+        <label class="rad"><input type="radio" name="ncF" id="ncF1" value="conjunto" checked> Sí, es mía: calcular la renta junto con las demás</label>
+        <label class="rad"><input type="radio" name="ncF" id="ncF2" value="independiente"> No, es independiente: calcular la renta por separado</label>
+      </fieldset>
+      <div class="actions"><button class="btn" type="button" id="ncCrear">Crear cartera</button></div>
+      <p class="err-msg" id="ncErr" hidden></p>
+    </div>
+  </div>`;
+}
+function wireCarteras(){
+  document.querySelectorAll('[data-cn]').forEach(i=>i.onchange=()=>{const c=carteraDe(i.dataset.cn);if(!c)return;const v=i.value.trim().slice(0,40);
+    if(!v){i.value=c.nombre;return;} if(store.carteras.some(x=>x!==c&&x.nombre.toLowerCase()===v.toLowerCase())){i.value=c.nombre;toast('Ya tienes una cartera con ese nombre');return;}
+    c.nombre=v;guardar();renderCartBar();toast('Cartera renombrada');});
+  document.querySelectorAll('[data-cf]').forEach(s=>s.onchange=()=>{const c=carteraDe(s.dataset.cf);if(!c)return;c.fiscal=s.value==='independiente'?'independiente':'conjunto';guardar();render();toast(c.fiscal==='independiente'?'«'+c.nombre+'» se calculará por separado':'«'+c.nombre+'» se calculará junto con tus otras carteras');});
+  document.querySelectorAll('[data-cdel]').forEach(b=>b.onclick=()=>{borrarCart=b.dataset.cdel;render();});
+  const si=$('cdSi'); if(si) si.onclick=()=>{const id=borrarCart;store.movs=store.movs.filter(m=>m.cartera!==id);store.carteras=store.carteras.filter(c=>c.id!==id);
+    if(store.activa===id||(store.activa==='todas'&&store.carteras.length<2))store.activa=store.carteras[0].id;borrarCart=null;guardar();render();toast('Cartera eliminada');};
+  const no=$('cdNo'); if(no) no.onclick=()=>{borrarCart=null;render();};
+  const cr=$('ncCrear'); if(cr) cr.onclick=()=>{const n=$('ncNom').value.trim().slice(0,40);const err=$('ncErr');
+    if(!n){err.textContent='Escribe un nombre para la cartera.';err.hidden=false;return;}
+    if(store.carteras.some(c=>c.nombre.toLowerCase()===n.toLowerCase())){err.textContent='Ya tienes una cartera con ese nombre.';err.hidden=false;return;}
+    const f=($('ncF2')&&$('ncF2').checked)?'independiente':'conjunto';
+    const id='c'+uid(); store.carteras.push({id,nombre:n,fiscal:f}); store.activa=id; guardar(); tab='resumen'; render();
+    toast('Cartera «'+n+'» creada'+(f==='independiente'?' (fiscal separado)':' (fiscal conjunto)'));};
+}
+
 let demo = false, modo = 'cargando';
 let ajustes = {csvUrl:'', ultimaCopia:'', ultimaAct:''};
 const AJKEY='cuaderno-ibex-ajustes';
@@ -457,7 +555,7 @@ let toastT; function toast(t){const el=$('toast');el.textContent=t;el.hidden=fal
 
 function guardar(){
   if(demo) return;
-  try{localStorage.setItem(LSKEY,JSON.stringify(state));setStatus('ok','Guardado en este dispositivo');}
+  try{localStorage.setItem(LSKEY,JSON.stringify(store));setStatus('ok','Guardado en este dispositivo');}
   catch(e){setStatus('err','No se pudo guardar');toast('No se pudo guardar en este dispositivo. Haz una copia desde Ajustes.');}
 }
 function guardarAjustes(){try{localStorage.setItem(AJKEY,JSON.stringify(ajustes));}catch(e){}}
@@ -466,8 +564,10 @@ async function iniciar(){
   modo='local';
   try{ajustes=Object.assign(ajustes,JSON.parse(localStorage.getItem(AJKEY)||'{}'));}catch(e){}
   let d=null; try{ d=JSON.parse(localStorage.getItem(LSKEY)||'null'); }catch(e){}
-  if(d && Array.isArray(d.movs) && d.movs.length){state={movs:d.movs,precios:d.precios||{}};demo=false;setStatus('ok','Guardado en este dispositivo');}
-  else {state=ejemplo();demo=true;setStatus('','Datos de ejemplo');}
+  const n=normalizar(d);
+  if(n && (n.movs.length || (d&&d.v===2))){store=n;demo=false;setStatus('ok','Guardado en este dispositivo');}
+  else {store=storeEjemplo();demo=true;setStatus('','Datos de ejemplo');}
+  sincronizar();
   try{ if(navigator.storage&&navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
   render();
   if(ajustes.csvUrl && !demo) actualizarPrecios(true);
@@ -516,11 +616,13 @@ async function actualizarPrecios(silencioso){
   cargandoPrecios=false; render();
 }
 
-function empezar(){ state={movs:[],precios:{}}; demo=false; guardar(); render(); toast('Ejemplos eliminados. Ya puedes registrar tus movimientos.'); if(ajustes.csvUrl) actualizarPrecios(true); }
+function empezar(){ store=nuevoStore();sincronizar(); demo=false; guardar(); render(); toast('Ejemplos eliminados. Ya puedes registrar tus movimientos.'); if(ajustes.csvUrl) actualizarPrecios(true); }
 
 /* ---------- Render ---------- */
 function render(){
   const hoy=todayStr();
+  sincronizar();
+  renderCartBar();
   const R = calcular(state.movs,state.precios,hoy);
   renderBanner();
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===tab)));
@@ -531,8 +633,8 @@ function render(){
   if(tab==='movimientos') renderMovs(R);
   if(tab==='cartera') renderCartera(R,hoy);
   if(tab==='mercado') renderMercado(R,hoy);
-  if(tab==='fiscal') renderFiscal(R,hoy);
-  if(tab==='copia') renderCopia();
+  if(tab==='fiscal') renderFiscal(calcular(movsFiscales(),store.precios,hoy),hoy);
+  if(tab==='copia'){ renderCopia(); wireCarteras(); }
 }
 
 function renderBanner(){
@@ -679,6 +781,7 @@ function renderMovs(R){
         <label>Precio por acción (€)<input class="numin" id="fPrecio" inputmode="decimal" placeholder="6,85" value="${v(m.precio)}"></label>
         <label>Comisiones y gastos (€)<input class="numin" id="fGastos" inputmode="decimal" placeholder="0,00" value="${v(m.gastos)}"></label>
       `}
+      ${store.carteras.length>1?`<label>Cartera<select id="fCart">${store.carteras.map(c=>`<option value="${esc(c.id)}" ${c.id===cartDefault(editando)?'selected':''}>${esc(c.nombre)}</option>`).join('')}</select></label>`:''}
       <label>ISIN (opcional)<input id="fIsin" autocomplete="off" placeholder="ES0113900J37" value="${esc(m.isin||'')}"></label>
       <label>Nota (opcional)<input id="fNota" autocomplete="off" value="${esc(m.nota||'')}"></label>
       <div class="preview" id="fPrev"></div>
@@ -736,7 +839,7 @@ function renderMovs(R){
   el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{borrarId=b.dataset.del;render();});
   if(borrarId){$('cSi').onclick=()=>{
       if(demo){empezarSilencioso();}
-      else {state.movs=state.movs.filter(x=>x.id!==borrarId);guardar();}
+      else {store.movs=store.movs.filter(x=>x.id!==borrarId);guardar();}
       borrarId=null;render();toast('Movimiento eliminado');};
     $('cNo').onclick=()=>{borrarId=null;render();};}
   if(editando) $('fCancel').onclick=()=>{editId=null;render();};
@@ -754,7 +857,7 @@ function renderMovs(R){
     const fail=t=>{err.textContent=t;err.hidden=false;};
     if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return fail('Indica la fecha del movimiento.');
     if(!valor) return fail('Indica el valor, por ejemplo SAN o ITX.');
-    const o={tipo:t,fecha,valor,isin:$('fIsin').value.trim().toUpperCase(),nota:$('fNota').value.trim()};
+    const o={tipo:t,fecha,valor,isin:$('fIsin').value.trim().toUpperCase(),nota:$('fNota').value.trim(),cartera:($('fCart')&&carteraDe($('fCart').value))?$('fCart').value:cartDefault(editando)};
     if(t==='dividendo'){
       o.bruto=toNum($('fBruto').value); if(!(o.bruto>0)) return fail('Indica el importe bruto del dividendo (antes de retención).');
       const r=toNum($('fRet').value); o.retencion = isNaN(r)? r2(o.bruto*.19) : r;
@@ -769,12 +872,12 @@ function renderMovs(R){
     }
     if(demo) empezarSilencioso();
     if(editando && !demo){Object.assign(state.movs.find(x=>x.id===editId),o);editId=null;toast('Cambios guardados');}
-    else {const seq=Math.max(0,...state.movs.map(x=>x.seq||0))+1; state.movs.push(Object.assign({id:uid(),seq},o)); toast(t[0].toUpperCase()+t.slice(1)+' añadida');}
+    else {const seq=Math.max(0,...store.movs.map(x=>x.seq||0))+1; store.movs.push(Object.assign({id:uid(),seq},o)); toast(t[0].toUpperCase()+t.slice(1)+' añadida');}
     editId=null; prefill=null;
     guardar(); render();
   };
 }
-function empezarSilencioso(){state={movs:[],precios:{}};demo=false;}
+function empezarSilencioso(){store=nuevoStore();sincronizar();demo=false;}
 
 function varHoy(v){const x=state.precios[v];if(!x||x.v==null||!isFinite(x.v))return '';const c=x.v/100;return `<div class="meta ${cls(c)}">hoy ${pct(c)}</div>`;}
 function renderCartera(R,hoy){
@@ -880,8 +983,15 @@ function renderFiscal(R,hoy){
   const enCurso = anioFiscal===hoy.slice(0,4);
   el.innerHTML = `
   <div style="display:flex;flex-direction:column;gap:16px">
+  ${infoFiscal()}
   <div class="toolbar"><h2>Ejercicio ${anioFiscal}${enCurso?' <span class="chip warn">en curso</span>':''}</h2>
     <label>Año fiscal<select id="selA">${anios.map(x=>`<option ${x===anioFiscal?'selected':''}>${x}</option>`).join('')}</select></label></div>
+  <div class="panel">
+    <div class="cv-head"><h2>Informe fiscal en Excel</h2><span class="chip compra">Todos los años</span></div>
+    <p class="note">Un archivo con: <b>resumen fiscal por año</b>, <b>ventas para la renta</b> (valor de transmisión y de adquisición de cada venta), <b>dividendos</b>, <b>cartera actual</b>, <b>todos los movimientos</b> y <b>una pestaña por cada acción</b> con su historial, títulos tras cada operación y resultado.</p>
+    <div class="actions">${botonesExcel()}</div>
+    <p class="note" id="xlsMsg" aria-live="polite"></p>
+  </div>
   <div class="grid2">
     <div class="panel">
       <h2>Ganancias y pérdidas por venta de acciones</h2>
@@ -922,7 +1032,7 @@ function renderFiscal(R,hoy){
   <div class="tbl"><table>
     <thead><tr><th>Fecha venta</th><th>Valor</th><th class="n">Títulos</th><th class="n">Valor transmisión</th><th class="n">Valor adquisición</th><th>Fechas de compra (FIFO)</th><th class="n">Ganancia / pérdida</th><th class="n">No computable</th><th class="n">Días medio</th></tr></thead>
     <tbody>${a.ventas.length? a.ventas.map(v=>`<tr>
-      <td class="n">${fmtD(v.fecha)}</td><td><b>${esc(v.valor)}</b></td><td class="n">${NUM.format(v.qty)}</td>
+      <td class="n">${fmtD(v.fecha)}</td><td><b>${esc(v.valor)}</b>${nombre(v.valor)?`<div class="muted" style="font-size:.78rem">${esc(nombre(v.valor))}</div>`:''}</td><td class="n">${NUM.format(v.qty)}</td>
       <td class="n">${eur(v.transm)}</td><td class="n">${eur(v.adq)}</td>
       <td style="white-space:normal;min-width:180px">${v.usados.map(u=>`${NUM.format(u.qty)} del ${fmtD(u.fecha)}`).join('<br>')}</td>
       <td class="n ${cls(v.gp)}">${sgn(v.gp)}</td>
@@ -931,7 +1041,17 @@ function renderFiscal(R,hoy){
   </table></div>
   ${a.divs.length?`<h2>Detalle de dividendos</h2>
   <div class="tbl"><table><thead><tr><th>Fecha</th><th>Valor</th><th class="n">Bruto</th><th class="n">Retención</th><th class="n">Neto</th></tr></thead>
-  <tbody>${a.divs.map(d=>`<tr><td class="n">${fmtD(d.fecha)}</td><td><b>${esc(d.valor)}</b></td><td class="n">${eur(d.bruto)}</td><td class="n">${eur(d.ret)}</td><td class="n">${eur(d.neto)}</td></tr>`).join('')}</tbody></table></div>`:''}
+  <tbody>${a.divs.map(d=>`<tr><td class="n">${fmtD(d.fecha)}</td><td><b>${esc(d.valor)}</b>${nombre(d.valor)?`<div class="muted" style="font-size:.78rem">${esc(nombre(d.valor))}</div>`:''}</td><td class="n">${eur(d.bruto)}</td><td class="n">${eur(d.ret)}</td><td class="n">${eur(d.neto)}</td></tr>`).join('')}</tbody></table></div>`:''}
+  <details class="panel"><summary><b>Cómo pasar estos datos a Renta Web</b></summary>
+    <ol class="note-list">
+      <li>En Renta Web, revisa primero los <b>datos fiscales</b>: si tu bróker informa a Hacienda, las ventas y dividendos pueden aparecer ya cargados. Compáralos con esta pestaña o con la hoja «Ventas para la renta» del Excel.</li>
+      <li><b>Ventas de acciones</b>: van en el apartado de ganancias y pérdidas patrimoniales por transmisión de acciones admitidas a negociación. Por cada venta se indica la entidad emisora, el <b>valor de transmisión</b> y el <b>valor de adquisición</b>.</li>
+      <li>Si una venta tiene importe <b>no computable</b> por la regla de los dos meses, Renta Web permite indicarlo en esa misma venta para que no se compense ese año.</li>
+      <li><b>Dividendos</b>: van en rendimientos del capital mobiliario, con el importe íntegro y la retención.</li>
+      <li>Con brókers extranjeros puede no haber datos precargados: tendrás que introducir cada operación a mano con los importes de esta app y del informe fiscal del bróker.</li>
+    </ol>
+    <p class="note">Los nombres exactos de apartados y casillas cambian cada año. Esta guía es orientativa; ante dudas, consulta la ayuda de la AEAT o a un asesor fiscal.</p>
+  </details>
   <details class="panel"><summary><b>Reglas que aplica esta herramienta</b></summary>
     <ul class="note-list">
       <li><b>FIFO</b> (art. 37.2 LIRPF): al vender, se consideran vendidos primero los títulos comprados antes.</li>
@@ -945,20 +1065,142 @@ function renderFiscal(R,hoy){
   </details>
   </div>`;
   $('selA').onchange=e=>{anioFiscal=e.target.value;render();};
+  const xd=$('xlsDl'); if(xd) xd.onclick=()=>exportarExcel('descargar');
+  const xs=$('xlsSh'); if(xs) xs.onclick=()=>exportarExcel('compartir');
+}
+
+/* ---------- Exportación a Excel (SheetJS, se carga solo al pulsar el botón) ---------- */
+const XLSX_URL='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+let xlsxP=null;
+function cargarXLSX(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  if(!xlsxP) xlsxP=new Promise((res,rej)=>{const s=document.createElement('script');s.src=XLSX_URL;s.async=true;
+    s.onload=()=>window.XLSX?res(window.XLSX):rej(new Error('No se pudo preparar el generador de Excel.'));
+    s.onerror=()=>{xlsxP=null;s.remove();rej(new Error('No se pudo cargar el generador de Excel. Necesitas conexión a internet para crear el archivo.'));};
+    document.head.appendChild(s);});
+  return xlsxP;
+}
+function construirExcel(X,R,hoy){
+  const wb=X.utils.book_new();
+  const FE='#,##0.00 "€"', FN='#,##0.####', FD='dd/mm/yyyy', FP='0.00%';
+  const fecha=s=>{const [y,m,d]=s.split('-').map(Number);return Math.round((Date.UTC(y,m-1,d)-Date.UTC(1899,11,30))/86400000);};
+  const corto=t=>(nombre(t)||t).replace(/\s*\(.*\)/,'').replace(/,.*$/,'').replace(' Energía y Medio Ambiente','').replace('Laboratorios Farmacéuticos ','');
+  const usados=new Set();
+  const nomHoja=n=>{let b=String(n).replace(/[:\\\/?*\[\]]/g,' ').slice(0,31).trim()||'Hoja';let k=b,i=2;while(usados.has(k.toLowerCase())){k=(b.slice(0,28)+' '+i++);}usados.add(k.toLowerCase());return k;};
+  /* filas: array de arrays; fmt: {col:formato}; anchos: [..]; totales: {col:true} suma con fórmula */
+  function hoja(nombre,cab,filas,fmt,anchos,totales,pie){
+    const aoa=[cab,...filas];
+    const ws=X.utils.aoa_to_sheet(aoa,{cellDates:true});
+    const nR=filas.length;
+    for(let r=1;r<=nR;r++) for(const c in fmt){const a=X.utils.encode_cell({r,c:+c});if(ws[a]&&(ws[a].t==='n'||ws[a].t==='d'))ws[a].z=fmt[c];}
+    let ultima=nR;
+    if(totales&&nR){
+      const r=nR+1; ultima=r;
+      ws[X.utils.encode_cell({r,c:0})]={t:'s',v:'TOTAL'};
+      for(const c in totales){const col=X.utils.encode_col(+c);let v=0;filas.forEach(f=>{if(typeof f[c]==='number')v+=f[c];});
+        ws[X.utils.encode_cell({r,c:+c})]={t:'n',v:Math.round(v*100)/100,f:`SUM(${col}2:${col}${nR+1})`,z:fmt[c]||FE};}
+    }
+    if(pie&&pie.length){pie.forEach((t,i)=>{ws[X.utils.encode_cell({r:ultima+2+i,c:0})]={t:'s',v:t};});ultima=ultima+1+pie.length;}
+    ws['!ref']=X.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(ultima,0),c:cab.length-1}});
+    ws['!cols']=(anchos||cab.map(()=>14)).map(w=>({wch:w}));
+    if(nR) ws['!autofilter']={ref:X.utils.encode_range({s:{r:0,c:0},e:{r:nR,c:cab.length-1}})};
+    X.utils.book_append_sheet(wb,ws,nomHoja(nombre));
+  }
+  const ventaDe=new Map(R.ventas.map(v=>[v.mov.id,v]));
+  const r2=x=>Math.round(x*100)/100;
+  const AVISO='Estimación orientativa generada por Cartera de Inversiones. Contrástala con el informe fiscal de tu bróker y tus datos fiscales de la AEAT. No es asesoramiento fiscal.';
+
+  /* 1. Resumen fiscal por año */
+  const anios=Object.keys(R.anios).sort();
+  hoja('Resumen fiscal',
+    ['Año','Ganancias (€)','Pérdidas computables (€)','Pérdidas no computables 2 meses (€)','Saldo G/P (€)','Dividendos brutos (€)','Retenciones (€)','Pérdidas años anteriores aplicadas (€)','Base del ahorro estimada (€)','Cuota estimada (€)','A pagar (+) / devolver (−) (€)','Pérdidas pendientes para años siguientes (€)'],
+    anios.map(y=>{const a=R.anios[y];return [Number(y),r2(a.gan),r2(a.per),r2(a.noComp),r2(a.saldoGP),r2(a.divBruto),r2(a.divRet),r2(a.arrUsado||0),r2(a.base),r2(a.cuota),r2(a.resultado),r2(a.arrastreSiguiente||0)];}),
+    {1:FE,2:FE,3:FE,4:FE,5:FE,6:FE,7:FE,8:FE,9:FE,10:FE,11:FE},[8,14,16,18,14,14,13,18,16,14,18,20],null,
+    ['Cálculo fiscal de: '+grupoFiscal().nombre+(grupoFiscal().indep?' (cartera independiente)':''),'Escala del ahorro (territorio común, desde 2025): 19 % hasta 6.000 €, 21 % hasta 50.000 €, 23 % hasta 200.000 €, 27 % hasta 300.000 €, 30 % en adelante.',
+     'Solo incluye lo registrado en la app. No incluye intereses de cuentas, fondos ni otras rentas del ahorro.', AVISO]);
+
+  /* 2. Ventas para la declaración */
+  hoja('Ventas para la renta',
+    ['Año','Fecha venta','Valor','Entidad emisora','ISIN','Títulos','Valor de transmisión (€)','Valor de adquisición (€)','Ganancia / pérdida (€)','No computable 2 meses (€)','Computable este año (€)','Días medio invertido','Compras asignadas (FIFO)'],
+    R.ventas.map(v=>[Number(v.fecha.slice(0,4)),fecha(v.fecha),v.valor,nombre(v.valor)||v.valor,v.mov.isin||'',v.qty,r2(v.transm),r2(v.adq),r2(v.gp),r2(v.noComputable),r2(v.gp+v.noComputable),Math.round(v.diasMedio),v.usados.map(u=>NUM.format(u.qty)+' del '+fmtD(u.fecha)).join('; ')]),
+    {1:FD,5:FN,6:FE,7:FE,8:FE,9:FE,10:FE},[7,12,8,28,14,9,16,16,15,15,15,10,40],{6:1,7:1,8:1,9:1,10:1},
+    ['Valor de transmisión = precio de venta × títulos − gastos de venta. Valor de adquisición = precio de compra × títulos + gastos de compra (criterio FIFO, art. 37.2 LIRPF).',
+     'No computable: pérdida que no se puede aplicar este año por recompra en los 2 meses anteriores o posteriores (art. 33.5.f LIRPF). Se integra al vender los títulos recomprados.', AVISO]);
+
+  /* 3. Dividendos */
+  hoja('Dividendos',
+    ['Año','Fecha cobro','Valor','Entidad emisora','Importe bruto (€)','Retención (€)','Neto cobrado (€)','Nota'],
+    R.divs.map(d=>[Number(d.fecha.slice(0,4)),fecha(d.fecha),d.valor,nombre(d.valor)||d.valor,r2(d.bruto),r2(d.ret),r2(d.neto),d.mov.nota||'']),
+    {1:FD,4:FE,5:FE,6:FE},[7,12,8,28,15,13,15,40],{4:1,5:1,6:1},['Rendimientos del capital mobiliario: van a la base del ahorro.',AVISO]);
+
+  /* 4. Cartera actual */
+  hoja('Cartera actual',
+    ['Valor','Entidad emisora','Títulos','Precio medio (€)','Coste total (€)','Precio actual (€)','Fecha precio','Valor de mercado (€)','Plusvalía / minusvalía latente (€)','Latente (%)','Antigüedad media (días)'],
+    R.posiciones.map(p=>[p.valor,nombre(p.valor)||p.valor,p.qty,r2(p.pm),r2(p.coste),isFinite(p.precio)?p.precio:'',p.fechaPrecio?fecha(p.fechaPrecio):'',isFinite(p.mercado)?r2(p.mercado):'',isFinite(p.latente)?r2(p.latente):'',isFinite(p.latente)&&p.coste?p.latente/p.coste:'',Math.round(p.diasMedio)]),
+    {2:FN,3:FE,4:FE,5:FE,6:FD,7:FE,8:FE,9:FP},[8,28,9,14,14,14,12,16,18,10,14],{4:1,7:1,8:1},
+    ['La plusvalía latente no tributa hasta que vendes.',AVISO]);
+
+  /* 5. Todos los movimientos */
+  const filaMov=(m,saldo)=>{const v=ventaDe.get(m.id);
+    const imp=m.tipo==='compra'?-(m.titulos*m.precio+(m.gastos||0)):m.tipo==='venta'?m.titulos*m.precio-(m.gastos||0):(m.bruto||0)-(m.retencion||0);
+    return [fecha(m.fecha),m.tipo[0].toUpperCase()+m.tipo.slice(1),m.valor,nombre(m.valor)||m.valor,m.tipo==='dividendo'?'':m.titulos,m.tipo==='dividendo'?'':m.precio,m.tipo==='dividendo'?'':r2(m.gastos||0),m.tipo==='dividendo'?r2(m.bruto||0):'',m.tipo==='dividendo'?r2(m.retencion||0):'',r2(imp),saldo,v?r2(v.gp):'',v&&v.noComputable>0.005?r2(v.noComputable):'',m.nota||'',(carteraDe(m.cartera)||{}).nombre||''];};
+  const cabMov=['Fecha','Tipo','Valor','Entidad emisora','Títulos','Precio (€)','Gastos (€)','Dividendo bruto (€)','Retención (€)','Importe en cuenta (€)','Títulos tras la operación','Ganancia / pérdida venta (€)','No computable 2 meses (€)','Nota','Cartera'];
+  const fmtMov={0:FD,4:FN,5:'#,##0.0000 "€"',6:FE,7:FE,8:FE,9:FE,10:FN,11:FE,12:FE};
+  const anchoMov=[11,10,8,26,9,11,10,13,12,15,12,15,15,36,18];
+  const saldos={}; const todas=R.ord.map(m=>{if(m.tipo==='compra')saldos[m.valor]=(saldos[m.valor]||0)+m.titulos;else if(m.tipo==='venta')saldos[m.valor]=(saldos[m.valor]||0)-m.titulos;return filaMov(m,m.tipo==='dividendo'?'':Math.round((saldos[m.valor]||0)*10000)/10000);});
+  hoja('Todos los movimientos',cabMov,todas,fmtMov,anchoMov,{6:1,7:1,8:1,9:1,11:1,12:1},
+    ['Importe en cuenta: compras en negativo (precio × títulos + gastos), ventas en positivo (precio × títulos − gastos), dividendos netos de retención.',AVISO]);
+
+  /* 6. Una pestaña por acción */
+  const valores=[...new Set(R.ord.map(m=>m.valor))].sort((a,b)=>(nombre(a)||a).localeCompare(nombre(b)||b,'es'));
+  valores.forEach(t=>{
+    const filas=todas.filter(f=>f[2]===t);
+    const pos=R.posiciones.find(p=>p.valor===t);
+    const real=R.ventas.filter(v=>v.valor===t).reduce((s,v)=>s+v.gp,0);
+    const div=R.divs.filter(d=>d.valor===t).reduce((s,d)=>s+d.bruto,0);
+    const pie=[
+      `Resumen ${nombre(t)||t} (${t}) · generado el ${fmtD(hoy)}`,
+      `Ganancia/pérdida realizada en ventas: ${EUR.format(real)} · Dividendos brutos: ${EUR.format(div)}`,
+      pos?`Posición abierta: ${NUM.format(pos.qty)} títulos · coste ${EUR.format(pos.coste)}${isFinite(pos.latente)?' · latente '+EUR.format(pos.latente)+' al precio de '+EUR4.format(pos.precio)+' €':' · sin precio actual'}`:'Sin posición abierta.',
+      `Resultado total del valor (ventas + dividendos${pos&&isFinite(pos.latente)?' + latente':''}): ${EUR.format(real+div+(pos&&isFinite(pos.latente)?pos.latente:0))}`];
+    hoja(`${t} - ${corto(t)}`,cabMov,filas,fmtMov,anchoMov,{6:1,7:1,8:1,9:1,11:1,12:1},pie);
+  });
+  wb.Props={Title:'Cartera de Inversiones · Informe fiscal',Author:'Cartera de Inversiones',CreatedDate:new Date()};
+  return wb;
+}
+
+async function exportarExcel(modo){
+  const msg=$('xlsMsg'); if(!msg) return;
+  if(demo||!movsFiscales().length){msg.textContent='Primero registra tus movimientos: con los datos de ejemplo no se genera el Excel.';return;}
+  msg.textContent='Generando el Excel…';
+  try{
+    const X=await cargarXLSX(); const hoy=todayStr();
+    const wb=construirExcel(X,calcular(movsFiscales(),store.precios,hoy),hoy);
+    const buf=X.write(wb,{bookType:'xlsx',type:'array',compression:true});
+    const fn='cartera-inversiones-fiscal-'+(grupoFiscal().nombre.normalize('NFD').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase().slice(0,30)||'cartera')+'-'+hoy+'.xlsx', tipo='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    const blob=new Blob([buf],{type:tipo});
+    if(modo==='compartir'){ await navigator.share({files:[new File([blob],fn,{type:tipo})],title:'Cartera de Inversiones · Informe fiscal'}); msg.textContent='Excel listo: '+fn; return; }
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=fn; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000);
+    msg.textContent='Excel descargado: '+fn; toast('Excel descargado');
+  }catch(e){ if(e&&e.name==='AbortError'){msg.textContent='';return;} msg.textContent=(e&&e.message)||'No se pudo generar el Excel.'; }
+}
+function botonesExcel(){
+  let comp=false; try{comp=!!(navigator.canShare&&navigator.canShare({files:[new File(['x'],'a.xlsx',{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})]}));}catch(e){}
+  return (comp?'<button class="btn" id="xlsSh">Compartir Excel…</button>':'')+`<button class="btn ${comp?'ghost':''}" id="xlsDl">Descargar Excel</button>`;
 }
 
 function toCSV(){
-  const head=['fecha','tipo','valor','isin','titulos','precio','gastos','bruto','retencion','nota'];
+  const head=['fecha','tipo','valor','isin','titulos','precio','gastos','bruto','retencion','nota','cartera'];
   const q=s=>{s=String(s??'');return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
   const nf=n=>n?String(n).replace('.',','):'';
-  return '﻿'+head.join(';')+'\n'+ordenar(state.movs).map(m=>[m.fecha,m.tipo,m.valor,m.isin,nf(m.titulos),nf(m.precio),nf(m.gastos),nf(m.bruto),nf(m.retencion),m.nota].map(q).join(';')).join('\n');
+  return '﻿'+head.join(';')+'\n'+ordenar(state.movs).map(m=>[m.fecha,m.tipo,m.valor,m.isin,nf(m.titulos),nf(m.precio),nf(m.gastos),nf(m.bruto),nf(m.retencion),m.nota,(carteraDe(m.cartera)||{}).nombre||''].map(q).join(';')).join('\n');
 }
 
 function renderCopia(){
   const el=$('v-copia');
   const ult = ajustes.ultimaCopia? new Date(ajustes.ultimaCopia).toLocaleString('es-ES',{dateStyle:'medium',timeStyle:'short'}) : 'nunca';
   const puedeCompartir = !!(navigator.canShare && window.File && navigator.canShare({files:[new File(['x'],'a.json',{type:'application/json'})]}));
-  el.innerHTML=`
+  el.innerHTML=panelCarteras()+`
   <div style="display:flex;flex-direction:column;gap:16px">
   <div class="panel">
     <h2>Precios automáticos</h2>
@@ -972,9 +1214,9 @@ function renderCopia(){
       <h2>Copia de seguridad</h2>
       <p class="note">Tus datos solo están en este dispositivo. Guarda una copia en iCloud, Google Drive o tu correo de vez en cuando. Última copia: <b>${ult}</b>.</p>
       <div class="actions">
-        ${puedeCompartir?`<button class="btn" id="eShare" ${demo||!state.movs.length?'disabled':''}>Compartir copia…</button>`:''}
-        <button class="btn ${puedeCompartir?'ghost':''}" id="eJson" ${demo||!state.movs.length?'disabled':''}>Descargar copia (JSON)</button>
-        <button class="btn ghost" id="eCsv" ${demo||!state.movs.length?'disabled':''}>Descargar para Excel (CSV)</button>
+        ${puedeCompartir?`<button class="btn" id="eShare" ${demo||!store.movs.length?'disabled':''}>Compartir copia…</button>`:''}
+        <button class="btn ${puedeCompartir?'ghost':''}" id="eJson" ${demo||!store.movs.length?'disabled':''}>Descargar copia (JSON)</button>
+        <button class="btn ghost" id="eCsv" ${demo||!store.movs.length?'disabled':''}>Descargar para Excel (CSV)</button>
       </div>
       <p class="note" id="eMsg"></p>
     </div>
@@ -985,15 +1227,15 @@ function renderCopia(){
       <div id="iConf"></div>
     </div>
   </div>
-  <p class="note">Cuaderno IBEX <b>v${APP_VERSION}</b> · versión móvil. Funciona sin conexión; solo necesita internet para actualizar precios.</p>
+  <p class="note">Cartera de Inversiones <b>v${APP_VERSION}</b> · versión móvil. Funciona sin conexión; solo necesita internet para actualizar precios.</p>
   </div>`;
-  const nombre=ext=>'cuaderno-ibex-'+todayStr()+'.'+ext;
-  const json=()=>JSON.stringify({app:'cuaderno-ibex',v:1,exportado:new Date().toISOString(),movs:state.movs,precios:state.precios},null,1);
+  const nombre=ext=>'cartera-inversiones-'+todayStr()+'.'+ext;
+  const json=()=>JSON.stringify(Object.assign({app:'cartera-inversiones',exportado:new Date().toISOString()},store),null,1);
   const marcar=()=>{ajustes.ultimaCopia=new Date().toISOString();guardarAjustes();};
   const descargar=(fn,data,type)=>{const url=URL.createObjectURL(new Blob([data],{type}));const a=document.createElement('a');a.href=url;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);};
   $('eJson').onclick=()=>{descargar(nombre('json'),json(),'application/json');marcar();toast('Copia descargada');render();};
   $('eCsv').onclick=()=>{descargar(nombre('csv'),toCSV(),'text/csv;charset=utf-8');toast('CSV descargado');};
-  const es=$('eShare'); if(es) es.onclick=async()=>{try{await navigator.share({files:[new File([json()],nombre('json'),{type:'application/json'})],title:'Copia Cuaderno IBEX'});marcar();render();toast('Copia compartida');}catch(e){if(e&&e.name!=='AbortError')$('eMsg').textContent='No se pudo compartir. Usa "Descargar copia".';}};
+  const es=$('eShare'); if(es) es.onclick=async()=>{try{await navigator.share({files:[new File([json()],nombre('json'),{type:'application/json'})],title:'Copia Cartera de Inversiones'});marcar();render();toast('Copia compartida');}catch(e){if(e&&e.name!=='AbortError')$('eMsg').textContent='No se pudo compartir. Usa "Descargar copia".';}};
   $('aGuardar').onclick=()=>{const u=$('aUrl').value.trim();
     if(!/^https:\/\/docs\.google\.com\/spreadsheets\/.+/.test(u)){errPrecios='El enlace debe empezar por https://docs.google.com/spreadsheets/ y ser el de "Publicar en la web" en formato CSV.';render();return;}
     ajustes.csvUrl=u;guardarAjustes();
@@ -1005,10 +1247,10 @@ function renderCopia(){
     const rd=new FileReader();
     rd.onload=()=>{
       let d; try{d=JSON.parse(rd.result);}catch(x){$('iConf').innerHTML='<p class="err-msg">El archivo no es un JSON válido.</p>';return;}
-      if(!d||!Array.isArray(d.movs)){$('iConf').innerHTML='<p class="err-msg">El archivo no parece una copia de Cuaderno IBEX.</p>';return;}
+      if(!d||!Array.isArray(d.movs)){$('iConf').innerHTML='<p class="err-msg">El archivo no parece una copia de esta app.</p>';return;}
       const ok=d.movs.filter(m=>m&&/^\d{4}-\d{2}-\d{2}$/.test(m.fecha)&&['compra','venta','dividendo'].includes(m.tipo)&&m.valor);
-      $('iConf').innerHTML=`<div class="confirm"><span>${ok.length} movimientos válidos. ¿Sustituir los datos actuales?</span><button class="btn danger small" id="iSi">Sustituir</button><button class="btn ghost small" id="iNo">Cancelar</button></div>`;
-      $('iSi').onclick=()=>{let s=0;state={movs:ok.map(m=>({id:m.id||uid(),seq:m.seq||++s,tipo:m.tipo,fecha:m.fecha,valor:String(m.valor).toUpperCase(),isin:m.isin||'',titulos:+m.titulos||0,precio:+m.precio||0,gastos:+m.gastos||0,bruto:+m.bruto||0,retencion:+m.retencion||0,nota:m.nota||''})),precios:(d.precios&&typeof d.precios==='object')?d.precios:{}};demo=false;guardar();tab='resumen';render();toast('Copia restaurada');if(ajustes.csvUrl)actualizarPrecios(true);};
+      $('iConf').innerHTML=`<div class="confirm"><span>${ok.length} movimientos válidos${Array.isArray(d.carteras)&&d.carteras.length>1?' en '+d.carteras.length+' carteras':''}. ¿Sustituir los datos actuales?</span><button class="btn danger small" id="iSi">Sustituir</button><button class="btn ghost small" id="iNo">Cancelar</button></div>`;
+      $('iSi').onclick=()=>{store=normalizar(d);demo=false;guardar();tab='resumen';render();toast('Copia restaurada');if(ajustes.csvUrl)actualizarPrecios(true);};
       $('iNo').onclick=()=>{$('iConf').innerHTML='';e.target.value='';};
     };
     rd.readAsText(f);
@@ -1019,7 +1261,7 @@ $('fab').onclick=()=>{tab='movimientos';editId=null;prefill=null;borrarId=null;r
 $('tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(!b)return;tab=b.dataset.tab;editId=null;borrarId=null;prefill=null;render();});
 
 /* Exponer el motor para pruebas */
-window.__cuaderno={calcular,ejemplo,xirr,cuotaAhorro,addMonths};
+window.__cuaderno={calcular,ejemplo,xirr,cuotaAhorro,addMonths,get store(){return store;},get state(){return state;}};
 iniciar();
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
 })();
