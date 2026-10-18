@@ -202,7 +202,23 @@ label.rad input{width:auto;flex:none}
 .eye svg{width:18px;height:18px}
 .eye[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
 body.oculto .pos,body.oculto .neg{color:inherit!important}
-body.oculto .dbars,body.oculto .cv-bars,body.oculto .bars,body.oculto .chip.gan,body.oculto .chip.per,body.oculto .gl-sum,body.oculto .cv-leg{filter:blur(7px);pointer-events:none;user-select:none}
+body.oculto .evo,body.oculto .cal-row .d,body.oculto .dbars,body.oculto .cv-bars,body.oculto .bars,body.oculto .chip.gan,body.oculto .chip.per,body.oculto .gl-sum,body.oculto .cv-leg{filter:blur(7px);pointer-events:none;user-select:none}
+.chip.liberadas,.chip.derechos,.chip.split{background:var(--warn-soft);color:var(--warn)}
+.hint{grid-column:1/-1;font-size:.82rem;color:var(--muted);background:var(--sunk);border-radius:5px;padding:8px 10px;margin:0}
+.esp-sel{max-width:280px}
+.evo svg{width:100%;height:190px;display:block}
+.evo-x{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);font-family:var(--f-num);margin-top:4px}
+.sim-form{margin-top:4px}
+.sim-out{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.alerts-inline{margin:0;padding:10px 12px;border-radius:5px;background:var(--warn-soft);font-size:.86rem}
+.cal-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px 14px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.cal-row:last-child{border-bottom:0}
+.cal-row.mine{background:var(--accent-soft)}
+.cal-row .nm{min-width:0}.cal-row .nm .full{font-weight:600}
+.cal-row .nm small{display:block;color:var(--muted);font-size:.8rem}
+.cal-row .px{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:.9rem}
+.cal-row .px .d{font-size:.8rem;color:var(--gain)}
+.cal-form{margin-bottom:6px}
 @media (max-width:700px){
   .wrap{padding-block:14px calc(150px + env(safe-area-inset-bottom,0px))}
   h1{font-size:1.45rem}
@@ -225,6 +241,8 @@ body.oculto .dbars,body.oculto .cv-bars,body.oculto .bars,body.oculto .chip.gan,
   .cart-item{grid-template-columns:minmax(0,1fr) auto auto}
   .cart-item select{grid-column:1/-1;grid-row:2}
   .mk-tools input{max-width:none}
+  .cal-row{grid-template-columns:minmax(0,1fr) auto;padding:10px 12px}
+  .cal-row .btn{grid-column:2;justify-self:end}
   nav.tabs button{font-size:.64rem}
   .cv-sum{grid-template-columns:1fr 1fr}
   .cv-sum div:last-child{grid-column:1/-1;flex-direction:row;align-items:baseline;gap:10px}
@@ -266,7 +284,7 @@ body.oculto .dbars,body.oculto .cv-bars,body.oculto .bars,body.oculto .chip.gan,
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '1.4 · 18/10/2026';
+const APP_VERSION = '1.5 · 18/10/2026';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
 const NOMBRES = Object.fromEntries(IBEX35);
 const nombre = t => NOMBRES[t] || '';
@@ -325,13 +343,165 @@ function ejemplo(){
   };
 }
 
+
+/* ---------- Tipos especiales de movimiento ---------- */
+const TIPO_TXT={compra:'Compra',venta:'Venta',dividendo:'Dividendo',liberadas:'Acciones liberadas (scrip)',derechos:'Venta de derechos',split:'Split / contrasplit'};
+const TIPO_CORTO={compra:'compra',venta:'venta',dividendo:'dividendo',liberadas:'liberadas',derechos:'derechos',split:'split'};
+const ESPECIALES=['liberadas','derechos','split'];
+function infoMov(x,vt){
+  let imp=0,det='',res='';
+  if(x.tipo==='compra'){imp=-(x.titulos*x.precio+(x.gastos||0)); det=`${NUM.format(x.titulos)} × ${EUR4.format(x.precio)} € · gastos ${eur(x.gastos||0)}`;}
+  else if(x.tipo==='venta'){imp=x.titulos*x.precio-(x.gastos||0); det=`${NUM.format(x.titulos)} × ${EUR4.format(x.precio)} € · gastos ${eur(x.gastos||0)}`; if(vt) res=`<span class="${cls(vt.gp)}">${sgn(vt.gp)}</span>${vt.noComputable>0.005?' <span class="chip warn" title="Regla de los dos meses">2 meses</span>':''}${vt.difInt>0.005?' <span class="chip compra" title="Aplica una pérdida aplazada">aplazada</span>':''}${vt.faltan?' <span class="chip err">Faltan títulos</span>':''}`;}
+  else if(x.tipo==='liberadas'){imp=0; det=`${NUM.format(x.titulos)} acciones recibidas gratis · no tributa al recibirlas`;}
+  else if(x.tipo==='derechos'){imp=(x.bruto||0)-(x.gastos||0)-(x.retencion||0); det=`bruto ${eur(x.bruto||0)} · gastos ${eur(x.gastos||0)} · retención ${eur(x.retencion||0)}`; res=`<span class="${cls(x.bruto-(x.gastos||0))}">${sgn((x.bruto||0)-(x.gastos||0))}</span>`;}
+  else if(x.tipo==='split'){imp=0; det=`${NUM.format(x.nuevas||0)} acciones nuevas por cada ${NUM.format(x.antiguas||0)} antiguas`;}
+  else {imp=(x.bruto||0)-(x.retencion||0); det=`bruto ${eur(x.bruto||0)} · retención ${eur(x.retencion||0)}`; res=`<span class="muted">bruto ${eur(x.bruto||0)}</span>`;}
+  return {imp,det,res};
+}
+
+/* ---------- Calendario de dividendos (datos recopilados el 18/10/2026) ---------- */
+const CAL_FECHA='18/10/2026';
+const CAL_BASE=[
+  {id:'b-san-2611',t:'SAN',ex:'2026-10-29',pago:'2026-11-02',imp:0.127,estado:'confirmado',fuente:'Banco Santander, comunicado del 29/09/2026'},
+  {id:'b-itx-2611',t:'ITX',ex:'',pago:'2026-11-02',imp:0.875,estado:'confirmado',fuente:'Calendarios de Bankinter y Mundodividendos (oct. 2026)'},
+  {id:'b-mts-2612',t:'MTS',ex:'2026-11-12',pago:'2026-12-02',imp:0.13,estado:'confirmado',nota:'importe orientativo: ArcelorMittal fija el dividendo en dólares',fuente:'StockEvents (oct. 2026)'},
+  ...[['CABK'],['CLNX'],['IAG'],['MAP'],['MRL'],['NTGY']].map(([t])=>({id:'b-'+t.toLowerCase()+'-2611',t,mes:'2026-11',estado:'estimado',fuente:'Calendario habitual (Bankinter, oct. 2026)'})),
+  ...[['ENG'],['FER','habitualmente dividendo flexible (scrip)'],['BKT'],['SAB'],['TEF']].map(([t,n])=>({id:'b-'+t.toLowerCase()+'-2612',t,mes:'2026-12',estado:'estimado',nota:n||'',fuente:'Calendario habitual (Bankinter y Mundodividendos, oct. 2026)'})),
+  ...[['ACS','habitualmente dividendo flexible (scrip)'],['AMS'],['ELE'],['IBE','habitualmente dividendo flexible (scrip)'],['REP'],['SCYR']].map(([t,n])=>({id:'b-'+t.toLowerCase()+'-2701',t,mes:'2027-01',estado:'estimado',nota:n||'',fuente:'Calendario habitual (Bankinter, oct. 2026)'}))
+];
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function fechaClave(d){ return d.ex||d.pago||(d.mes?d.mes+'-15':''); }
+function textoFecha(d){
+  if(d.ex) return 'ex-dividendo '+fmtD(d.ex)+(d.pago?' · pago '+fmtD(d.pago):'');
+  if(d.pago) return 'pago '+fmtD(d.pago)+' · ex-dividendo por confirmar';
+  const [y,m]=d.mes.split('-'); return MESES[+m-1]+' '+y+' (fecha por confirmar)';
+}
+function calendario(){
+  const ocultos=new Set(store.calOcultos||[]);
+  return [...CAL_BASE.filter(d=>!ocultos.has(d.id)),...(store.cal||[])].filter(d=>fechaClave(d)).sort((a,b)=>fechaClave(a)<fechaClave(b)?-1:1);
+}
+function proximosDividendos(hoy,dias){
+  const lim=addMonths(hoy,3);
+  return calendario().filter(d=>{const f=fechaClave(d); const fin=d.mes&&!d.ex&&!d.pago? d.mes+'-31':f; return fin>=hoy && f<=lim;});
+}
+let calForm=false;
+
+/* ---------- Historial del valor de cada cartera (para la gráfica de evolución) ---------- */
+function registrarHistorial(){
+  if(demo) return false;
+  const hoy=todayStr(); let cambio=false;
+  store.hist=store.hist||{};
+  store.carteras.forEach(c=>{
+    const R=calcular(store.movs.filter(m=>m.cartera===c.id),store.precios,hoy);
+    const h=store.hist[c.id]=store.hist[c.id]||{};
+    if(!R.posiciones.length && !Object.keys(h).length) return;
+    const val=[Math.round(R.mercado*100)/100,Math.round(R.costeVivo*100)/100];
+    if(!h[hoy]||h[hoy][0]!==val[0]||h[hoy][1]!==val[1]){ h[hoy]=val; cambio=true; }
+    const ks=Object.keys(h).sort(); if(ks.length>3000) ks.slice(0,ks.length-3000).forEach(k=>delete h[k]);
+  });
+  if(cambio) guardar();
+  return cambio;
+}
+function serieEvolucion(){
+  const ids=store.activa==='todas'?store.carteras.map(c=>c.id):[store.activa];
+  const hs=ids.map(id=>(store.hist||{})[id]||{});
+  const fechas=[...new Set(hs.flatMap(h=>Object.keys(h)))].sort();
+  const ult=hs.map(()=>null);
+  return fechas.map(f=>{ let v=0,c=0; hs.forEach((h,i)=>{ if(h[f]) ult[i]=h[f]; if(ult[i]){v+=ult[i][0];c+=ult[i][1];} }); return {f,v,c}; });
+}
+function panelEvolucion(){
+  const s=serieEvolucion();
+  if(!s.length) return `<div class="panel"><h2>Evolución de la cartera</h2><p class="note">La gráfica empieza a llenarse hoy: cada día que abras la app con precios actualizados se guarda el valor de tu cartera.</p></div>`;
+  if(s.length<2){ const p=s[0]; return `<div class="panel"><h2>Evolución de la cartera</h2><p class="note">Primer registro el ${fmtD(p.f)}: valor ${eur(p.v)}, invertido ${eur(p.c)}. La gráfica aparecerá en cuanto haya un segundo día con precios. Se irá completando sola cada día que abras la app.</p></div>`; }
+  const W=640,H=200,PL=6,PR=6,PT=12,PB=6;
+  const t0=parseD(s[0].f), t1=parseD(s[s.length-1].f), dt=Math.max(1,t1-t0);
+  const vals=s.flatMap(p=>[p.v,p.c]); let mn=Math.min(...vals), mx=Math.max(...vals); const pad=(mx-mn)*0.12||mx*0.05||1; mn-=pad; mx+=pad;
+  const X=f=>PL+(parseD(f)-t0)/dt*(W-PL-PR), Y=v=>PT+(1-(v-mn)/(mx-mn))*(H-PT-PB);
+  const lv=s.map(p=>`${X(p.f).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' '), lc=s.map(p=>`${X(p.f).toFixed(1)},${Y(p.c).toFixed(1)}`).join(' ');
+  const area=`${X(s[0].f).toFixed(1)},${(H-PB).toFixed(1)} ${lv} ${X(s[s.length-1].f).toFixed(1)},${(H-PB).toFixed(1)}`;
+  const u=s[s.length-1], dif=u.v-u.c;
+  const grid=[0.25,0.5,0.75].map(k=>`<line x1="${PL}" x2="${W-PR}" y1="${(PT+k*(H-PT-PB)).toFixed(1)}" y2="${(PT+k*(H-PT-PB)).toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`).join('');
+  return `<div class="panel">
+    <div class="cv-head"><h2>Evolución de la cartera</h2><span class="muted" style="font-size:.8rem">desde ${fmtD(s[0].f)}</span></div>
+    <div class="evo"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Valor de la cartera frente a lo invertido desde el ${fmtD(s[0].f)}" preserveAspectRatio="none">
+      ${grid}
+      <polygon points="${area}" fill="var(--accent-soft)"/>
+      <polyline points="${lc}" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"/>
+      <polyline points="${lv}" fill="none" stroke="var(--accent)" stroke-width="2.5" vector-effect="non-scaling-stroke"/>
+      <circle cx="${X(u.f).toFixed(1)}" cy="${Y(u.v).toFixed(1)}" r="4.5" fill="var(--accent)"/>
+    </svg><div class="evo-x"><span>${fmtD(s[0].f)}</span><span>${fmtD(u.f)}</span></div></div>
+    <div class="cv-leg"><span><i style="background:var(--accent)"></i>Valor de mercado: ${eur(u.v)}</span><span><i style="background:var(--muted)"></i>Invertido (coste): ${eur(u.c)}</span><span class="${cls(dif)}">Diferencia: ${sgn(dif)}</span></div>
+  </div>`;
+}
+
+/* ---------- Simulador de venta ---------- */
+let simIn=null, simRes=null;
+function panelSimulador(R,hoy){
+  const pos=R.posiciones;
+  if(!pos.length) return `<div class="panel"><h2>Simulador: ¿qué pasa si vendo?</h2><p class="note">No tienes posiciones abiertas en estas carteras.</p></div>`;
+  if(!simIn||!pos.find(p=>p.valor===simIn.valor)){ const p=pos[0]; simIn={valor:p.valor,tit:p.qty,precio:isFinite(p.precio)?p.precio:'',gastos:'',fecha:hoy}; simRes=null; }
+  const p=pos.find(x=>x.valor===simIn.valor);
+  const v=x=>x===''||x==null?'':String(x).replace('.',',');
+  let out='';
+  if(simRes){
+    const r=simRes;
+    if(r.error) out=`<p class="err-msg">${esc(r.error)}</p>`;
+    else out=`<div class="sim-out">
+      <dl class="rows">
+        <dt>Ganancia o pérdida de la venta (FIFO)</dt><dd class="${cls(r.gp)}">${sgn(r.gp)}</dd>
+        ${r.noComp>0.005?`<dt>No computable por compras en los 2 meses anteriores</dt><dd class="muted">${eur(r.noComp)}</dd>`:''}
+        ${r.difInt>0.005?`<dt>Pérdida aplazada que se aplicaría</dt><dd class="neg">−${eur(r.difInt)}</dd>`:''}
+        <dt>Renta ${r.anio}: resultado actual estimado</dt><dd>${r.r0>=0?'pagar ':'devolver '}${eur(Math.abs(r.r0))}</dd>
+        <dt>Renta ${r.anio}: si vendes</dt><dd>${r.r1>=0?'pagar ':'devolver '}${eur(Math.abs(r.r1))}</dd>
+        <dt class="total">${r.r1-r.r0>0.005?'Pagarías de más':r.r1-r.r0<-0.005?'Te ahorrarías':'Efecto en la renta'}</dt><dd class="total ${r.r1-r.r0>0.005?'neg':r.r1-r.r0<-0.005?'pos':''}">${eur(Math.abs(r.r1-r.r0))}</dd>
+        ${r.pend>0.005?`<dt>Pérdidas que pasarían a años siguientes</dt><dd>${eur(r.pend)}</dd>`:''}
+      </dl>
+      <p class="note">Títulos vendidos por FIFO: ${esc(r.fifo)}.</p>
+      ${r.gp<-0.005?`<p class="alerts-inline"><b>Regla de los dos meses:</b> si vuelves a comprar ${esc(nombre(simIn.valor)||simIn.valor)} antes del <b>${fmtD(r.hasta)}</b>, la pérdida dejaría de contar en esta renta y se aplazaría.</p>`:''}
+      ${r.noComp>0.005?`<p class="alerts-inline">Has comprado ${esc(simIn.valor)} en los 2 meses anteriores a esta fecha: parte de la pérdida no computaría ahora.</p>`:''}
+      <p class="note">Simulación orientativa: no registra nada ni tiene en cuenta otras rentas del ahorro. No es una recomendación de venta.</p>
+    </div>`;
+  }
+  return `<div class="panel">
+    <h2>Simulador: ¿qué pasa si vendo?</h2>
+    <p class="note">Prueba una venta sin registrarla y mira cómo cambiaría tu renta del año.</p>
+    <div class="mov sim-form">
+      <label>Valor<select id="sV">${pos.map(x=>`<option value="${esc(x.valor)}" ${x.valor===simIn.valor?'selected':''}>${esc(x.valor)}${nombre(x.valor)?' · '+esc(nombre(x.valor)):''}</option>`).join('')}</select></label>
+      <label>Títulos (tienes ${NUM.format(p.qty)})<input class="numin" id="sT" inputmode="decimal" value="${v(simIn.tit)}"></label>
+      <label>Precio de venta (€)<input class="numin" id="sP" inputmode="decimal" value="${v(simIn.precio)}" placeholder="${isFinite(p.precio)?'':'escribe el precio'}"></label>
+      <label>Comisiones (€)<input class="numin" id="sG" inputmode="decimal" value="${v(simIn.gastos)}" placeholder="0,00"></label>
+      <label>Fecha de venta<input type="date" id="sF" value="${esc(simIn.fecha)}"></label>
+      <div class="actions" style="align-self:end"><button class="btn" type="button" id="sGo">Simular</button></div>
+    </div>
+    ${out}
+  </div>`;
+}
+function wireSimulador(R,hoy){
+  const sv=$('sV'); if(!sv) return;
+  sv.onchange=()=>{const p=R.posiciones.find(x=>x.valor===sv.value); simIn={valor:sv.value,tit:p.qty,precio:isFinite(p.precio)?p.precio:'',gastos:'',fecha:simIn.fecha}; simRes=null; render();};
+  $('sGo').onclick=()=>{
+    simIn={valor:sv.value,tit:toNum($('sT').value),precio:toNum($('sP').value),gastos:toNum($('sG').value)||0,fecha:$('sF').value||hoy};
+    const p=R.posiciones.find(x=>x.valor===simIn.valor);
+    if(!(simIn.tit>0)||simIn.tit>p.qty+1e-9){simRes={error:'Indica cuántos títulos venderías (como máximo '+NUM0.format(p.qty)+').'};render();return;}
+    if(!(simIn.precio>0)){simRes={error:'Indica el precio de venta por acción.'};render();return;}
+    const movs=movsFiscales();
+    const mov={id:'__sim',seq:1e12,tipo:'venta',fecha:simIn.fecha,valor:simIn.valor,titulos:simIn.tit,precio:simIn.precio,gastos:simIn.gastos,bruto:0,retencion:0,cartera:'__sim'};
+    const base=calcular(movs,store.precios,hoy), sim=calcular([...movs,mov],store.precios,hoy);
+    const vs=sim.ventas.find(x=>x.mov.id==='__sim'); const anio=simIn.fecha.slice(0,4);
+    const a0=base.anios[anio], a1=sim.anios[anio];
+    simRes={gp:vs.gp,noComp:vs.noComputable,difInt:vs.difInt,anio,r0:a0?a0.resultado:0,r1:a1.resultado,pend:Math.max(0,(a1.arrastreSiguiente||0)-(a0?a0.arrastreSiguiente||0:0)),hasta:addMonths(simIn.fecha,2),
+      fifo:vs.usados.map(u=>NUM0.format(Math.round(u.qty*10000)/10000)+' comprados el '+fmtD(u.fecha)).join('; ')};
+    render();
+  };
+}
+
 /* ---------- Motor de cálculo ---------- */
 function ordenar(movs){return movs.slice().sort((a,b)=> a.fecha<b.fecha?-1:a.fecha>b.fecha?1:(a.seq||0)-(b.seq||0));}
 
 function calcular(movs, precios, hoy){
   const ord = ordenar(movs);
   const lotes = {}; // valor -> [{fecha,qty,cpu}]
-  const ventas = [], divs = [], errores = [];
+  const ventas = [], divs = [], errores = [], derechos = [];
   const comprasPorValor = {};
   const difer = {};
   let comisiones = 0;
@@ -363,6 +533,18 @@ function calcular(movs, precios, hoy){
       ventas.push(v);
     } else if(mv.tipo==='dividendo'){
       divs.push({mov:mv,valor:mv.valor,fecha:mv.fecha,bruto:mv.bruto||0,ret:mv.retencion||0,neto:(mv.bruto||0)-(mv.retencion||0)});
+    } else if(mv.tipo==='liberadas'){
+      /* Acciones totalmente liberadas (art. 37.1.a LIRPF): el coste se reparte entre antiguas y nuevas; antigüedad de las de origen */
+      const tot=L.reduce((s,l)=>s+l.qty,0);
+      if(tot<=1e-9) errores.push(`Acciones liberadas de ${mv.valor} del ${fmtD(mv.fecha)}: no tenías títulos de ese valor en esa fecha.`);
+      else L.forEach(l=>{const add=mv.titulos*l.qty/tot; l.cpu=l.cpu*l.qty/(l.qty+add); l.qty+=add;});
+    } else if(mv.tipo==='split'){
+      const r=mv.antiguas>0&&mv.nuevas>0?mv.nuevas/mv.antiguas:(mv.ratio>0?mv.ratio:1);
+      L.forEach(l=>{l.qty*=r; l.cpu/=r;});
+    } else if(mv.tipo==='derechos'){
+      /* Venta de derechos de valores cotizados: ganancia patrimonial íntegra desde 2017, con retención */
+      comisiones += (mv.gastos||0);
+      derechos.push({mov:mv,valor:mv.valor,fecha:mv.fecha,importe:(mv.bruto||0)-(mv.gastos||0),bruto:mv.bruto||0,gastos:mv.gastos||0,ret:mv.retencion||0});
     }
   });
 
@@ -412,7 +594,7 @@ function calcular(movs, precios, hoy){
   });
 
   /* Agregados */
-  const realizado = ventas.reduce((s,v)=>s+v.gp,0);
+  const realizado = ventas.reduce((s,v)=>s+v.gp,0) + derechos.reduce((s,d)=>s+d.importe,0);
   const latente = posiciones.reduce((s,p)=>s+(isFinite(p.latente)?p.latente:0),0);
   const sinPrecio = posiciones.filter(p=>!isFinite(p.precio)).map(p=>p.valor);
   const divBruto = divs.reduce((s,d)=>s+d.bruto,0), divRet = divs.reduce((s,d)=>s+d.ret,0);
@@ -439,15 +621,17 @@ function calcular(movs, precios, hoy){
     if(m.tipo==='compra') flujos.push([m.fecha,-(m.titulos*m.precio+(m.gastos||0))]);
     else if(m.tipo==='venta') flujos.push([m.fecha,m.titulos*m.precio-(m.gastos||0)]);
     else if(m.tipo==='dividendo') flujos.push([m.fecha,m.bruto||0]);
+    else if(m.tipo==='derechos') flujos.push([m.fecha,(m.bruto||0)-(m.gastos||0)]);
   });
   if(mercado>0) flujos.push([hoy,mercado]);
   const tir = xirr(flujos);
 
   /* Por año fiscal */
   const anios = {};
-  const A = y => anios[y] = anios[y] || {anio:y,ventas:[],divs:[],gan:0,per:0,noComp:0,difInt:0,divBruto:0,divRet:0};
+  const A = y => anios[y] = anios[y] || {anio:y,ventas:[],divs:[],der:[],derImp:0,derRet:0,gan:0,per:0,noComp:0,difInt:0,divBruto:0,divRet:0};
   ventas.forEach(v=>{const a=A(v.fecha.slice(0,4)); a.ventas.push(v); if(v.gp>=0) a.gan+=v.gp; else {a.per+=v.gp+v.noComputable; a.noComp+=v.noComputable;} if(v.difInt>0){a.per-=v.difInt; a.difInt+=v.difInt;}});
   divs.forEach(d=>{const a=A(d.fecha.slice(0,4)); a.divs.push(d); a.divBruto+=d.bruto; a.divRet+=d.ret;});
+  derechos.forEach(d=>{const a=A(d.fecha.slice(0,4)); a.der.push(d); a.derImp+=d.importe; a.derRet+=d.ret; if(d.importe>=0) a.gan+=d.importe; else a.per+=d.importe;});
   /* Arrastre de saldos negativos de G/P de los 4 ejercicios anteriores (art. 49 LIRPF), del más antiguo al más reciente */
   let arrastre = []; // [{anio, importe}]
   Object.keys(anios).sort().forEach(y=>{
@@ -464,13 +648,13 @@ function calcular(movs, precios, hoy){
     let pendiente=0;
     if(gp<0){ compensa=Math.min(-gp, Math.max(0,limite)); rcm-=compensa; pendiente=-gp-compensa; gp=0; }
     a.arrUsado=arrUsado; a.compensa=compensa; a.pendiente=pendiente;
-    a.base=Math.max(0,gp)+rcm; a.cuota=cuotaAhorro(a.base); a.resultado=a.cuota-a.divRet;
+    a.base=Math.max(0,gp)+rcm; a.cuota=cuotaAhorro(a.base); a.resultado=a.cuota-a.divRet-a.derRet;
     arrastre = arrastre.filter(x=>x.importe>0.005);
     if(pendiente>0.005) arrastre.push({anio:y,importe:pendiente});
     a.arrastreSiguiente = arrastre.reduce((s,x)=>s+x.importe,0);
   });
 
-  return {diferidas,ord,ventas,divs,posiciones,errores,realizado,latente,sinPrecio,divBruto,divRet,totalCompras,costeVendido,costeVivo,mercado,total,diasMedio,capitalMedio,tir,anios,comisiones,primera};
+  return {derechos,diferidas,ord,ventas,divs,posiciones,errores,realizado,latente,sinPrecio,divBruto,divRet,totalCompras,costeVendido,costeVivo,mercado,total,diasMedio,capitalMedio,tir,anios,comisiones,primera};
 }
 
 function xirr(fl){
@@ -499,10 +683,13 @@ function normalizar(d){
     ? d.carteras.filter(c=>c&&c.id).map(c=>({id:String(c.id),nombre:String(c.nombre||'Cartera').slice(0,40),fiscal:c.fiscal==='independiente'?'independiente':'conjunto'}))
     : [{id:'c1',nombre:'Cartera principal',fiscal:'conjunto'}];
   const ids=new Set(carteras.map(c=>c.id));
-  const movs=(Array.isArray(d.movs)?d.movs:[]).filter(m=>m&&/^\d{4}-\d{2}-\d{2}$/.test(m.fecha)&&['compra','venta','dividendo'].includes(m.tipo)&&m.valor)
-    .map((m,i)=>({id:m.id||uid(),seq:m.seq||i+1,tipo:m.tipo,fecha:m.fecha,valor:String(m.valor).toUpperCase(),isin:m.isin||'',titulos:+m.titulos||0,precio:+m.precio||0,gastos:+m.gastos||0,bruto:+m.bruto||0,retencion:+m.retencion||0,nota:m.nota||'',cartera:ids.has(String(m.cartera))?String(m.cartera):carteras[0].id}));
+  const movs=(Array.isArray(d.movs)?d.movs:[]).filter(m=>m&&/^\d{4}-\d{2}-\d{2}$/.test(m.fecha)&&['compra','venta','dividendo','liberadas','derechos','split'].includes(m.tipo)&&m.valor)
+    .map((m,i)=>({id:m.id||uid(),seq:m.seq||i+1,tipo:m.tipo,fecha:m.fecha,valor:String(m.valor).toUpperCase(),isin:m.isin||'',titulos:+m.titulos||0,precio:+m.precio||0,gastos:+m.gastos||0,bruto:+m.bruto||0,retencion:+m.retencion||0,nuevas:+m.nuevas||0,antiguas:+m.antiguas||0,ratio:+m.ratio||0,nota:m.nota||'',cartera:ids.has(String(m.cartera))?String(m.cartera):carteras[0].id}));
   const activa=(d.activa==='todas'&&carteras.length>1)||ids.has(d.activa)?d.activa:carteras[0].id;
-  return {v:2,carteras,movs,precios,activa};
+  const hist=(d.hist&&typeof d.hist==='object')?d.hist:{};
+  const cal=Array.isArray(d.cal)?d.cal.filter(x=>x&&x.t&&(x.ex||x.pago)):[];
+  const calOcultos=Array.isArray(d.calOcultos)?d.calOcultos:[];
+  return {v:2,carteras,movs,precios,activa,hist,cal,calOcultos};
 }
 function storeEjemplo(){ const e=ejemplo(); return normalizar({carteras:[{id:'c1',nombre:'Cartera de ejemplo',fiscal:'conjunto'}],movs:e.movs,precios:e.precios}); }
 function carteraDe(id){ return store.carteras.find(c=>c.id===id); }
@@ -596,6 +783,7 @@ async function iniciar(){
   if(n && (n.movs.length || (d&&d.v===2))){store=n;demo=false;setStatus('ok','Guardado en este dispositivo');}
   else {store=storeEjemplo();demo=true;setStatus('','Datos de ejemplo');}
   sincronizar();
+  registrarHistorial();
   try{ if(navigator.storage&&navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
   render();
   if(ajustes.csvUrl && !demo) actualizarPrecios(true);
@@ -635,7 +823,7 @@ async function actualizarPrecios(silencioso){
       state.precios[t]={p,f:hoy,h:hora,v:isFinite(v)?v:null}; n++;
     });
     if(!n) throw new Error('No se encontró ningún precio. Revisa que la columna A tenga el valor y la B el precio.');
-    ajustes.ultimaAct=new Date().toISOString(); guardarAjustes(); guardar();
+    ajustes.ultimaAct=new Date().toISOString(); guardarAjustes(); guardar(); registrarHistorial();
     if(!silencioso) toast(n+' precios actualizados');
   }catch(e){
     errPrecios = (e && e.name==='TypeError') ? 'No se pudo conectar con la hoja. Comprueba la conexión y que el enlace sea el de "Publicar en la web" en formato CSV.' : (e.message||'Error al leer la hoja.');
@@ -689,6 +877,9 @@ function renderResumen(R,hoy){
   R.errores.forEach(e=>alerts.push(`<li><b>Revisa:</b> ${esc(e)}</li>`));
   R.ventas.filter(v=>v.noComputable>0.005).forEach(v=>alerts.push(`<li><b>Regla de los dos meses · ${esc(v.valor)}</b> — venta con pérdida del ${fmtD(v.fecha)}: ${NUM.format(v.recompra)} de ${NUM.format(v.qty)} títulos se consideran recomprados. ${eur(v.noComputable)} de pérdida no se pueden computar ahora; se aplicarán automáticamente en el año en que vendas esos títulos.</li>`));
   R.ventas.filter(v=>v.gp<-0.005 && v.ventanaAbierta && v.noComputable < -v.gp-0.005).forEach(v=>alerts.push(`<li><b>Ventana abierta · ${esc(v.valor)}</b> — si compras ${esc(v.valor)} antes del ${fmtD(v.ventanaHasta)}, parte de la pérdida del ${fmtD(v.fecha)} (${eur(-v.gp)}) dejará de ser computable este año.</li>`));
+  const proxDiv=proximosDividendos(hoy);
+  proxDiv.filter(d=>R.posiciones.some(p=>p.valor===d.t)).forEach(d=>{const p=R.posiciones.find(x=>x.valor===d.t); alerts.push(`<li class="info"><b>Dividendo próximo · ${esc(nombre(d.t)||d.t)}</b> — ${esc(textoFecha(d))}${d.imp?`, ${EUR40.format(d.imp)} €/acción: cobrarías unos ${eur(p.qty*d.imp)} brutos`:''}${d.estado!=='confirmado'?' (estimado)':''}.</li>`);});
+  if(proxDiv.length) alerts.push(`<li class="info">${proxDiv.length} empresas del IBEX tienen dividendo previsto en los próximos 3 meses. Míralos en <b>Mercado</b>.</li>`);
   const viejos = R.posiciones.filter(p=>p.fechaPrecio && days(p.fechaPrecio,hoy)>7).map(p=>p.valor);
   if(R.sinPrecio.length) alerts.push(`<li class="info">Sin precio actual para ${R.sinPrecio.map(esc).join(', ')}: se valora a coste. Actualízalo en <b>Cartera</b> o conecta los precios automáticos en <b>Ajustes</b>.</li>`);
   if(viejos.length) alerts.push(`<li class="info">Precios con más de una semana: ${viejos.map(esc).join(', ')}.</li>`);
@@ -743,6 +934,7 @@ function renderResumen(R,hoy){
   </div>
   ${alerts.length?`<ul class="alerts">${alerts.join('')}</ul>`:''}
   ${cartActual}
+  ${panelEvolucion()}
   <div class="grid2">
     <div class="panel">
       <h2>De dónde sale el beneficio</h2>
@@ -797,12 +989,25 @@ function renderMovs(R){
   <div style="display:flex;flex-direction:column;gap:16px">
   <div class="panel">
     <div class="toolbar"><h2>${editando?'Editar movimiento':'Nuevo movimiento'}</h2>
-      ${editando?'':`<div class="seg" role="group" aria-label="Tipo">${['compra','venta','dividendo'].map(k=>`<button type="button" data-tipo="${k}" aria-pressed="${t===k}">${k[0].toUpperCase()+k.slice(1)}</button>`).join('')}</div>`}
+      ${editando?'':`<div class="seg" role="group" aria-label="Tipo">${['compra','venta','dividendo','otras'].map(k=>`<button type="button" data-tipo="${k}" aria-pressed="${t===k||(k==='otras'&&ESPECIALES.includes(t))}">${k==='otras'?'Otras':k[0].toUpperCase()+k.slice(1)}</button>`).join('')}</div>`}
     </div>
+    ${ESPECIALES.includes(t)&&!editando?`<label class="esp-sel">Tipo de operación<select id="fEsp">${ESPECIALES.map(k=>`<option value="${k}" ${k===t?'selected':''}>${TIPO_TXT[k]}</option>`).join('')}</select></label>`:''}
     <form class="mov" id="fMov" novalidate>
       <label>Fecha<input type="date" id="fFecha" required value="${esc(m.fecha||todayStr())}"></label>
       <label>Valor (ticker)<input id="fValor" list="valores" required autocomplete="off" placeholder="SAN" value="${esc(m.valor||'')}"></label>
-      ${t==='dividendo' ? `
+      ${t==='liberadas' ? `
+        <label>Acciones recibidas<input class="numin" id="fTit" inputmode="decimal" placeholder="12" value="${v(m.titulos)}"></label>
+        <p class="hint">Acciones gratuitas de un <b>dividendo flexible (scrip)</b> o ampliación liberada. No tributan al recibirlas: el coste de tus acciones se reparte entre las antiguas y las nuevas, que heredan su antigüedad (art. 37.1.a LIRPF). Si en vez de acciones vendiste los derechos a la propia empresa a precio fijo, regístralo como <b>Dividendo</b>; si los vendiste en bolsa, como <b>Venta de derechos</b>.</p>
+      ` : t==='derechos' ? `
+        <label>Importe bruto de la venta (€)<input class="numin" id="fBruto" inputmode="decimal" placeholder="25,00" value="${v(m.bruto)}"></label>
+        <label>Comisiones y gastos (€)<input class="numin" id="fGastos" inputmode="decimal" placeholder="0,00" value="${v(m.gastos)}"></label>
+        <label>Retención (€)<input class="numin" id="fRet" inputmode="decimal" placeholder="19 % si lo dejas vacío" value="${v(m.retencion)}"></label>
+        <p class="hint">Venta de <b>derechos de suscripción o de asignación gratuita en bolsa</b>: desde 2017 tributa entera como ganancia patrimonial del año en que vendes, con retención del 19 %. Si los vendiste a la propia empresa a precio fijo (opción habitual del scrip), regístralo como <b>Dividendo</b>.</p>
+      ` : t==='split' ? `
+        <label>Acciones nuevas<input class="numin" id="fNue" inputmode="decimal" placeholder="2" value="${v(m.nuevas)}"></label>
+        <label>Por cada (antiguas)<input class="numin" id="fAnt" inputmode="decimal" placeholder="1" value="${v(m.antiguas)}"></label>
+        <p class="hint"><b>Split</b> (por ejemplo 2 nuevas por cada 1) o <b>contrasplit</b> (1 nueva por cada 10). Cambia el número de acciones y su coste unitario, pero no tu coste total ni la antigüedad. No tributa.</p>
+      ` : t==='dividendo' ? `
         <label>Importe bruto (€)<input class="numin" id="fBruto" inputmode="decimal" placeholder="115,00" value="${v(m.bruto)}"></label>
         <label>Retención (€)<input class="numin" id="fRet" inputmode="decimal" placeholder="19 % si lo dejas vacío" value="${v(m.retencion)}"></label>
       ` : `
@@ -816,7 +1021,7 @@ function renderMovs(R){
       <div class="preview" id="fPrev"></div>
       <div class="err-msg" id="fErr" hidden></div>
       <div class="actions" style="grid-column:1/-1">
-        <button class="btn" type="submit">${editando?'Guardar cambios':'Añadir '+t}</button>
+        <button class="btn" type="submit">${editando?'Guardar cambios':'Añadir '+TIPO_TXT[t].toLowerCase()}</button>
         ${editando?'<button class="btn ghost" type="button" id="fCancel">Cancelar</button>':''}
       </div>
     </form>
@@ -832,12 +1037,9 @@ function renderMovs(R){
   ${borrarId?`<div class="confirm"><span>¿Eliminar este movimiento? No se puede deshacer.</span><button class="btn danger small" id="cSi">Eliminar</button><button class="btn ghost small" id="cNo">Cancelar</button></div>`:''}
   <div class="cards mob">${lista.length? lista.map(x=>{
       const vt=ventaMap.get(x.id);
-      let imp, det, res='';
-      if(x.tipo==='compra'){imp=-(x.titulos*x.precio+(x.gastos||0)); det=`${NUM.format(x.titulos)} × ${EUR4.format(x.precio)} € · gastos ${eur(x.gastos||0)}`;}
-      else if(x.tipo==='venta'){imp=x.titulos*x.precio-(x.gastos||0); det=`${NUM.format(x.titulos)} × ${EUR4.format(x.precio)} € · gastos ${eur(x.gastos||0)}`; if(vt) res=`<span class="${cls(vt.gp)}">${sgn(vt.gp)}</span>${vt.noComputable>0.005?' <span class="chip warn">2 meses</span>':''}${vt.faltan?' <span class="chip err">Faltan títulos</span>':''}`;}
-      else {imp=(x.bruto||0)-(x.retencion||0); det=`bruto ${eur(x.bruto||0)} · retención ${eur(x.retencion||0)}`;}
+      const {imp,det,res}=infoMov(x,vt);
       return `<div class="card"${borrarId===x.id?' style="background:var(--loss-soft)"':''}>
-        <div><b>${esc(x.valor)}</b>${nombre(x.valor)?` <span class="muted" style="font-size:.82rem">${esc(nombre(x.valor))}</span>`:''} <span class="chip ${x.tipo}">${x.tipo}</span>${demo?' <span class="chip demo">ej.</span>':''}<div class="meta">${fmtD(x.fecha)}</div></div>
+        <div><b>${esc(x.valor)}</b>${nombre(x.valor)?` <span class="muted" style="font-size:.82rem">${esc(nombre(x.valor))}</span>`:''} <span class="chip ${x.tipo}">${TIPO_CORTO[x.tipo]||x.tipo}</span>${demo?' <span class="chip demo">ej.</span>':''}<div class="meta">${fmtD(x.fecha)}</div></div>
         <div class="r"><div class="${cls(imp)}">${sgn(imp)}</div>${res?`<div style="font-size:.85rem">${res}</div>`:''}</div>
         <div class="full meta">${det}${x.nota?' · '+esc(x.nota):''}</div>
         <div class="full actions" style="justify-content:flex-end"><button class="btn ghost small" data-ed="${esc(x.id)}">Editar</button><button class="btn ghost small" data-del="${esc(x.id)}">Eliminar</button></div>
@@ -846,22 +1048,21 @@ function renderMovs(R){
     <thead><tr><th>Fecha</th><th>Tipo</th><th>Valor</th><th class="n">Títulos</th><th class="n">Precio</th><th class="n">Gastos</th><th class="n">Importe</th><th class="n">Resultado</th><th></th></tr></thead>
     <tbody>${lista.length? lista.map(x=>{
       const vt=ventaMap.get(x.id);
-      let imp, res='';
-      if(x.tipo==='compra') imp=-(x.titulos*x.precio+(x.gastos||0));
-      else if(x.tipo==='venta'){imp=x.titulos*x.precio-(x.gastos||0); if(vt) res=`<span class="${cls(vt.gp)}">${sgn(vt.gp)}</span>${vt.noComputable>0.005?' <span class="chip warn" title="Regla de los dos meses">2 meses</span>':''}${vt.faltan?' <span class="chip err">Faltan títulos</span>':''}`;}
-      else {imp=(x.bruto||0)-(x.retencion||0); res=`<span class="muted">bruto ${eur(x.bruto||0)}</span>`;}
+      const {imp,res}=infoMov(x,vt);
+      const sinTP=['dividendo','derechos','split'].includes(x.tipo);
       return `<tr${borrarId===x.id?' style="background:var(--loss-soft)"':''}>
-        <td class="n">${fmtD(x.fecha)}</td><td><span class="chip ${x.tipo}">${x.tipo}</span>${demo?' <span class="chip demo">ej.</span>':''}</td>
+        <td class="n">${fmtD(x.fecha)}</td><td><span class="chip ${x.tipo}">${TIPO_CORTO[x.tipo]||x.tipo}</span>${demo?' <span class="chip demo">ej.</span>':''}</td>
         <td><b>${esc(x.valor)}</b>${nombre(x.valor)?`<div class="muted" style="font-size:.78rem">${esc(nombre(x.valor))}</div>`:''}${x.nota?`<div class="muted" style="font-size:.78rem;white-space:normal;max-width:220px">${esc(x.nota)}</div>`:''}</td>
-        <td class="n">${x.tipo==='dividendo'?'':NUM.format(x.titulos)}</td>
-        <td class="n">${x.tipo==='dividendo'?'':EUR4.format(x.precio)}</td>
-        <td class="n">${x.tipo==='dividendo'?eur(x.retencion||0)+' ret.':eur(x.gastos||0)}</td>
+        <td class="n">${x.tipo==='split'?NUM.format(x.nuevas)+':'+NUM.format(x.antiguas):sinTP?'':NUM.format(x.titulos)}</td>
+        <td class="n">${sinTP||x.tipo==='liberadas'?'':EUR4.format(x.precio)}</td>
+        <td class="n">${x.tipo==='dividendo'?eur(x.retencion||0)+' ret.':x.tipo==='derechos'?eur(x.gastos||0)+' · '+eur(x.retencion||0)+' ret.':eur(x.gastos||0)}</td>
         <td class="n ${cls(imp)}">${sgn(imp)}</td><td class="n">${res}</td>
         <td><div class="actions" style="flex-wrap:nowrap"><button class="btn ghost small" data-ed="${esc(x.id)}">Editar</button><button class="btn ghost small" data-del="${esc(x.id)}">Eliminar</button></div></td></tr>`;}).join('') : `<tr><td colspan="9" class="empty">No hay movimientos con estos filtros.</td></tr>`}
     </tbody></table></div>
   </div>`;
 
-  el.querySelectorAll('[data-tipo]').forEach(b=>b.onclick=()=>{tipoForm=b.dataset.tipo;render();});
+  el.querySelectorAll('[data-tipo]').forEach(b=>b.onclick=()=>{tipoForm=b.dataset.tipo==='otras'?(ESPECIALES.includes(tipoForm)?tipoForm:'liberadas'):b.dataset.tipo;render();});
+  const fe=$('fEsp'); if(fe) fe.onchange=()=>{tipoForm=fe.value;render();};
   $('flV').onchange=e=>{filtroValor=e.target.value;render();};
   $('flA').onchange=e=>{filtroAnio=e.target.value;render();};
   el.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{editId=b.dataset.ed;borrarId=null;render();window.scrollTo({top:0,behavior:'smooth'});});
@@ -875,6 +1076,8 @@ function renderMovs(R){
 
   const prev=()=>{
     const p=$('fPrev'); if(!p) return;
+    if(t==='liberadas'||t==='split'){p.textContent='';return;}
+    if(t==='derechos'){const b=toNum($('fBruto').value),g=toNum($('fGastos').value)||0;let r=toNum($('fRet').value);if(isNaN(r)&&isFinite(b))r=r2(b*.19);p.textContent=isFinite(b)?`Ganancia patrimonial: ${eur(b-g)} · neto en cuenta: ${eur(b-g-(isFinite(r)?r:0))}`:'';return;}
     if(t==='dividendo'){const b=toNum($('fBruto').value);let r=toNum($('fRet').value);if(isNaN(r)&&isFinite(b))r=r2(b*.19);p.textContent=isFinite(b)?`Neto cobrado: ${eur(b-(isFinite(r)?r:0))} · retención ${eur(isFinite(r)?r:0)}`:'';}
     else{const q=toNum($('fTit').value),pr=toNum($('fPrecio').value),g=toNum($('fGastos').value)||0;if(isFinite(q)&&isFinite(pr))p.textContent=t==='compra'?`Coste total: ${eur(q*pr+g)} · coste por acción con gastos: ${EUR4.format((q*pr+g)/q)} €`:`Importe neto de la venta: ${eur(q*pr-g)}`;else p.textContent='';}
   };
@@ -887,7 +1090,21 @@ function renderMovs(R){
     if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return fail('Indica la fecha del movimiento.');
     if(!valor) return fail('Indica el valor, por ejemplo SAN o ITX.');
     const o={tipo:t,fecha,valor,isin:$('fIsin').value.trim().toUpperCase(),nota:$('fNota').value.trim(),cartera:($('fCart')&&carteraDe($('fCart').value))?$('fCart').value:cartDefault(editando)};
-    if(t==='dividendo'){
+    o.nuevas=0;o.antiguas=0;o.ratio=0;
+    if(t==='liberadas'){
+      o.titulos=toNum($('fTit').value); if(!(o.titulos>0)) return fail('Indica cuántas acciones gratuitas recibiste.');
+      o.precio=0;o.gastos=0;o.bruto=0;o.retencion=0;
+    } else if(t==='split'){
+      o.nuevas=toNum($('fNue').value); o.antiguas=toNum($('fAnt').value);
+      if(!(o.nuevas>0)||!(o.antiguas>0)) return fail('Indica la proporción: acciones nuevas por cada antiguas.');
+      o.ratio=o.nuevas/o.antiguas; o.titulos=0;o.precio=0;o.gastos=0;o.bruto=0;o.retencion=0;
+    } else if(t==='derechos'){
+      o.bruto=toNum($('fBruto').value); if(!(o.bruto>0)) return fail('Indica el importe bruto de la venta de derechos.');
+      o.gastos=toNum($('fGastos').value); if(isNaN(o.gastos)) o.gastos=0;
+      const r=toNum($('fRet').value); o.retencion=isNaN(r)?r2(o.bruto*.19):r;
+      if(o.retencion<0||o.retencion>o.bruto) return fail('La retención debe estar entre 0 y el importe bruto.');
+      o.titulos=0;o.precio=0;
+    } else if(t==='dividendo'){
       o.bruto=toNum($('fBruto').value); if(!(o.bruto>0)) return fail('Indica el importe bruto del dividendo (antes de retención).');
       const r=toNum($('fRet').value); o.retencion = isNaN(r)? r2(o.bruto*.19) : r;
       if(o.retencion<0||o.retencion>o.bruto) return fail('La retención debe estar entre 0 y el importe bruto.');
@@ -901,7 +1118,7 @@ function renderMovs(R){
     }
     if(demo) empezarSilencioso();
     if(editando && !demo){Object.assign(state.movs.find(x=>x.id===editId),o);editId=null;toast('Cambios guardados');}
-    else {const seq=Math.max(0,...store.movs.map(x=>x.seq||0))+1; store.movs.push(Object.assign({id:uid(),seq},o)); toast(t[0].toUpperCase()+t.slice(1)+' añadida');}
+    else {const seq=Math.max(0,...store.movs.map(x=>x.seq||0))+1; store.movs.push(Object.assign({id:uid(),seq},o)); toast(TIPO_TXT[t]+' añadida');}
     editId=null; prefill=null;
     guardar(); render();
   };
@@ -951,7 +1168,7 @@ function renderCartera(R,hoy){
       if(!(n>0)){toast('Precio no válido para '+val);return;}
       if(cur && cur.p===n && cur.f===hoy) return;
       if(demo){toast('Estos son datos de ejemplo. Pulsa "Empezar con mi cartera" para usar los tuyos.');}
-      state.precios[val]={p:n,f:hoy,h:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),v:null}; guardar(); render();
+      state.precios[val]={p:n,f:hoy,h:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),v:null}; guardar(); registrarHistorial(); render();
       const nx=$((inp.id.startsWith('prm-')?'prm-':'pr-')+val); if(nx) nx.focus();};
     inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();commit();}});
     inp.addEventListener('change',commit);
@@ -975,6 +1192,7 @@ function renderMercado(R,hoy){
   <div style="display:flex;flex-direction:column;gap:14px">
     <div class="mk-head"><div><h2>IBEX 35</h2><p class="note">${ajustes.ultimaAct?'Precios de las '+new Date(ajustes.ultimaAct).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' · retraso aprox. 15–20 min':'Sin precios todavía'}</p></div><div class="actions">${ajustes.csvUrl?`<button class="btn small" id="mkAct" ${cargandoPrecios||demo?'disabled':''}>${cargandoPrecios?'Actualizando…':'Actualizar precios'}</button>`:`<button class="btn ghost small" id="mkConf">Conectar precios automáticos</button>`}</div></div>
     ${errPreciosMk()}
+    ${panelCalendario(R,hoy)}
     ${conPrecio?`
     <div class="panel" style="gap:10px">
       <div class="mk-breadth">
@@ -999,20 +1217,59 @@ function renderMercado(R,hoy){
   const q=$('mkQ'); q.oninput=()=>{mkQ=q.value;const pos=q.selectionStart;render();const n=$('mkQ');if(n){n.focus();try{n.setSelectionRange(pos,pos);}catch(e){}}};
   el.querySelectorAll('[data-ord]').forEach(b=>b.onclick=()=>{mkOrden=b.dataset.ord;render();});
   el.querySelectorAll('[data-reg]').forEach(b=>b.onclick=()=>{const t=b.dataset.reg;const x=state.precios[t];prefill={valor:t,precio:x&&x.p>0?x.p:'',fecha:todayStr()};tipoForm='compra';editId=null;borrarId=null;tab='movimientos';render();window.scrollTo({top:0,behavior:'smooth'});});
+  wireCalendario();
   const ma=$('mkAct'); if(ma) ma.onclick=()=>actualizarPrecios(false);
   const mc=$('mkConf'); if(mc) mc.onclick=()=>{tab='copia';render();};
 }
 function errPreciosMk(){ return (typeof errPrecios!=='undefined' && errPrecios)?`<p class="err-msg">${esc(errPrecios)}</p>`:''; }
+function panelCalendario(R,hoy){
+  const prox=proximosDividendos(hoy);
+  const mios=new Map(R.posiciones.map(p=>[p.valor,p]));
+  const usr=new Set((store.cal||[]).map(d=>d.id));
+  const filas=prox.map(d=>{const p=mios.get(d.t); const cobro=p&&d.imp?p.qty*d.imp:NaN;
+    return `<div class="cal-row${p&&!oculto?' mine':''}">
+      <div class="nm"><span class="full">${esc(nombre(d.t)||d.t)}</span> <span class="chip ${d.estado==='confirmado'?'gan':'warn'}">${d.estado==='confirmado'?'Confirmado':'Estimado'}</span>${p&&!oculto?' <span class="chip mine">En cartera</span>':''}
+        <small>${esc(d.t)} · ${esc(textoFecha(d))}${d.nota?' · '+esc(d.nota):''}</small></div>
+      <div class="px"><div>${d.imp?EUR40.format(d.imp)+' €/acc.':'—'}</div>${p&&isFinite(cobro)?`<div class="d">≈ ${eur(cobro)} brutos</div>`:''}</div>
+      <button class="btn ghost small" type="button" data-calx="${esc(d.id)}" title="${usr.has(d.id)?'Eliminar':'Ocultar'} este aviso">${usr.has(d.id)?'Eliminar':'Ocultar'}</button>
+    </div>`;}).join('');
+  return `<div class="panel" id="calPanel">
+    <div class="cv-head"><h2>Dividendos en los próximos 3 meses</h2><button class="btn ghost small" type="button" id="calAdd">${calForm?'Cerrar':'Añadir dividendo'}</button></div>
+    ${calForm?`<div class="mov cal-form">
+      <label>Valor<input id="cT" list="valores" autocomplete="off" placeholder="SAN"></label>
+      <label>Fecha ex-dividendo<input type="date" id="cEx"></label>
+      <label>Fecha de pago<input type="date" id="cPa"></label>
+      <label>Importe bruto por acción (€)<input class="numin" id="cIm" inputmode="decimal" placeholder="0,25"></label>
+      <div class="actions" style="align-self:end"><button class="btn" type="button" id="cOk">Guardar</button></div>
+      <p class="err-msg" id="cErr" hidden></p>
+    </div>`:''}
+    ${prox.length?`<div class="mk-list">${filas}</div>`:'<p class="note">No hay dividendos previstos en los próximos 3 meses en tu calendario.</p>'}
+    <p class="note">Para cobrar un dividendo tienes que tener las acciones al cierre del día anterior a la fecha ex-dividendo. Datos recopilados el ${CAL_FECHA}: los «estimados» siguen el calendario habitual de cada empresa y pueden cambiar. Confírmalos en la web de la empresa o en tu bróker. Puedes añadir los que conozcas tú.</p>
+  </div>`;
+}
+function wireCalendario(){
+  const a=$('calAdd'); if(!a) return;
+  a.onclick=()=>{calForm=!calForm;render();};
+  document.querySelectorAll('[data-calx]').forEach(b=>b.onclick=()=>{const id=b.dataset.calx;
+    if((store.cal||[]).some(d=>d.id===id)) store.cal=store.cal.filter(d=>d.id!==id); else {store.calOcultos=[...(store.calOcultos||[]),id];}
+    if(!demo) guardar(); render(); toast('Aviso quitado');});
+  const ok=$('cOk'); if(ok) ok.onclick=()=>{const err=$('cErr'); const t=$('cT').value.trim().toUpperCase(); const ex=$('cEx').value, pa=$('cPa').value, im=toNum($('cIm').value);
+    if(!t){err.textContent='Indica el valor.';err.hidden=false;return;}
+    if(!ex&&!pa){err.textContent='Indica al menos la fecha ex-dividendo o la de pago.';err.hidden=false;return;}
+    store.cal=[...(store.cal||[]),{id:'u'+uid(),t,ex,pago:pa,imp:im>0?im:0,estado:'confirmado',fuente:'Añadido por ti'}];
+    calForm=false; if(!demo) guardar(); render(); toast('Dividendo añadido al calendario');};
+}
 function renderFiscal(R,hoy){
   const el=$('v-fiscal');
   const anios=Object.keys(R.anios).sort().reverse();
-  if(!anios.length){el.innerHTML=`<div class="panel empty">Todavía no hay ventas ni dividendos: no hay nada que declarar por ahora.</div>`;return;}
+  if(!anios.length){el.innerHTML=`<div style="display:flex;flex-direction:column;gap:16px">${infoFiscal()}${panelSimulador(R,hoy)}<div class="panel empty">Todavía no hay ventas ni dividendos: no hay nada que declarar por ahora.</div></div>`;wireSimulador(R,hoy);return;}
   if(!anioFiscal||!R.anios[anioFiscal]) anioFiscal=anios[0];
   const a=R.anios[anioFiscal];
   const enCurso = anioFiscal===hoy.slice(0,4);
   el.innerHTML = `
   <div style="display:flex;flex-direction:column;gap:16px">
   ${infoFiscal()}
+  ${panelSimulador(R,hoy)}
   <div class="toolbar"><h2>Ejercicio ${anioFiscal}${enCurso?' <span class="chip warn">en curso</span>':''}</h2>
     <label>Año fiscal<select id="selA">${anios.map(x=>`<option ${x===anioFiscal?'selected':''}>${x}</option>`).join('')}</select></label></div>
   <div class="panel">
@@ -1028,6 +1285,7 @@ function renderFiscal(R,hoy){
         <dt>Ganancias</dt><dd class="pos">${sgn(a.gan)}</dd>
         <dt>Pérdidas computables</dt><dd class="neg">${sgn(a.per)}</dd>
         <dt class="total">Saldo neto</dt><dd class="total ${cls(a.saldoGP)}">${sgn(a.saldoGP)}</dd>
+        ${a.der.length?`<dt>Incluye venta de derechos de suscripción</dt><dd class="${cls(a.derImp)}">${sgn(a.derImp)}</dd>`:''}
         ${a.difInt>0.005?`<dt>Incluye pérdidas aplazadas de años o ventas anteriores que se aplican ahora</dt><dd class="neg">−${eur(a.difInt)}</dd>`:''}
         ${a.noComp>0.005?`<dt>Pérdidas no computables por recompra (regla de los dos meses)</dt><dd class="muted">${eur(a.noComp)}</dd>`:''}
       </dl>
@@ -1053,7 +1311,7 @@ function renderFiscal(R,hoy){
       ${a.compensa>0.005?`<dt>Pérdida del año compensada con dividendos (máx. 25 %)</dt><dd>−${eur(a.compensa)}</dd>`:''}
       <dt class="total">Base del ahorro estimada</dt><dd class="total">${eur(a.base)}</dd>
       <dt>Cuota estimada (escala del ahorro 19–30 %)</dt><dd>${eur(a.cuota)}</dd>
-      <dt>Menos retenciones ya soportadas</dt><dd>−${eur(a.divRet)}</dd>
+      <dt>Menos retenciones ya soportadas</dt><dd>−${eur(a.divRet+a.derRet)}</dd>
       <dt class="total">${oculto?'Resultado estimado de estas inversiones':a.resultado>=0?'A pagar por estas inversiones (aprox.)':'A devolver por estas inversiones (aprox.)'}</dt><dd class="total ${a.resultado>=0?'neg':'pos'}">${eur(Math.abs(a.resultado))}</dd>
       ${a.arrastreSiguiente>0.005?`<dt>Pérdidas pendientes de compensar en años siguientes</dt><dd>${eur(a.arrastreSiguiente)}</dd>`:''}
     </dl>
@@ -1097,6 +1355,7 @@ function renderFiscal(R,hoy){
   </details>
   </div>`;
   $('selA').onchange=e=>{anioFiscal=e.target.value;render();};
+  wireSimulador(R,hoy);
   const xd=$('xlsDl'); if(xd) xd.onclick=()=>exportarExcel('descargar');
   const xs=$('xlsSh'); if(xs) xs.onclick=()=>exportarExcel('compartir');
 }
@@ -1155,7 +1414,7 @@ function construirExcel0(X,R,hoy){
   /* 2. Ventas para la declaración */
   hoja('Ventas para la renta',
     ['Año','Fecha venta','Valor','Entidad emisora','ISIN','Títulos','Valor de transmisión (€)','Valor de adquisición (€)','Ganancia / pérdida (€)','No computable 2 meses (€)','Pérdida aplazada que se aplica ahora (€)','Computable este año (€)','Días medio invertido','Compras asignadas (FIFO)'],
-    R.ventas.map(v=>[Number(v.fecha.slice(0,4)),fecha(v.fecha),v.valor,nombre(v.valor)||v.valor,v.mov.isin||'',v.qty,r2(v.transm),r2(v.adq),r2(v.gp),r2(v.noComputable),v.difInt>0.005?r2(-v.difInt):0,r2(v.gp+v.noComputable-v.difInt),Math.round(v.diasMedio),v.usados.map(u=>NUM.format(u.qty)+' del '+fmtD(u.fecha)).join('; ')]),
+    R.ventas.map(v=>[Number(v.fecha.slice(0,4)),fecha(v.fecha),v.valor,nombre(v.valor)||v.valor,v.mov.isin||'',v.qty,r2(v.transm),r2(v.adq),r2(v.gp),r2(v.noComputable),v.difInt>0.005?r2(-v.difInt):0,r2(v.gp+v.noComputable-v.difInt),Math.round(v.diasMedio),v.usados.map(u=>NUM.format(u.qty)+' del '+fmtD(u.fecha)).join('; ')]).concat(R.derechos.map(d=>[Number(d.fecha.slice(0,4)),fecha(d.fecha),d.valor,(nombre(d.valor)||d.valor)+' (venta de derechos)',d.mov.isin||'','',r2(d.importe),0,r2(d.importe),0,0,r2(d.importe),'','Derechos: ganancia íntegra (retención '+EUR.format(d.ret)+')'])).sort((a,b)=>a[1]-b[1]),
     {1:FD,5:FN,6:FE,7:FE,8:FE,9:FE,10:FE,11:FE},[7,12,8,28,14,9,16,16,15,15,18,15,10,40],{6:1,7:1,8:1,9:1,10:1,11:1},
     ['Valor de transmisión = precio de venta × títulos − gastos de venta. Valor de adquisición = precio de compra × títulos + gastos de compra (criterio FIFO, art. 37.2 LIRPF).',
      'No computable: pérdida que no se puede aplicar este año por recompra en los 2 meses anteriores o posteriores (art. 33.5.f LIRPF).',
@@ -1178,12 +1437,13 @@ function construirExcel0(X,R,hoy){
 
   /* 5. Todos los movimientos */
   const filaMov=(m,saldo)=>{const v=ventaDe.get(m.id);
-    const imp=m.tipo==='compra'?-(m.titulos*m.precio+(m.gastos||0)):m.tipo==='venta'?m.titulos*m.precio-(m.gastos||0):(m.bruto||0)-(m.retencion||0);
-    return [fecha(m.fecha),m.tipo[0].toUpperCase()+m.tipo.slice(1),m.valor,nombre(m.valor)||m.valor,m.tipo==='dividendo'?'':m.titulos,m.tipo==='dividendo'?'':m.precio,m.tipo==='dividendo'?'':r2(m.gastos||0),m.tipo==='dividendo'?r2(m.bruto||0):'',m.tipo==='dividendo'?r2(m.retencion||0):'',r2(imp),saldo,v?r2(v.gp):'',v&&v.noComputable>0.005?r2(v.noComputable):'',m.nota||'',(carteraDe(m.cartera)||{}).nombre||''];};
+    const imp=m.tipo==='compra'?-(m.titulos*m.precio+(m.gastos||0)):m.tipo==='venta'?m.titulos*m.precio-(m.gastos||0):m.tipo==='derechos'?(m.bruto||0)-(m.gastos||0)-(m.retencion||0):(m.tipo==='liberadas'||m.tipo==='split')?0:(m.bruto||0)-(m.retencion||0);
+    const sinTP=m.tipo==='dividendo'||m.tipo==='derechos'||m.tipo==='split';
+    return [fecha(m.fecha),TIPO_TXT[m.tipo]||m.tipo,m.valor,nombre(m.valor)||m.valor,sinTP?(m.tipo==='split'?NUM.format(m.nuevas)+' por '+NUM.format(m.antiguas):''):m.titulos,sinTP||m.tipo==='liberadas'?'':m.precio,m.tipo==='dividendo'||m.tipo==='split'||m.tipo==='liberadas'?'':r2(m.gastos||0),m.tipo==='dividendo'||m.tipo==='derechos'?r2(m.bruto||0):'',m.tipo==='dividendo'||m.tipo==='derechos'?r2(m.retencion||0):'',r2(imp),saldo,v?r2(v.gp):'',v&&v.noComputable>0.005?r2(v.noComputable):'',m.nota||'',(carteraDe(m.cartera)||{}).nombre||''];};
   const cabMov=['Fecha','Tipo','Valor','Entidad emisora','Títulos','Precio (€)','Gastos (€)','Dividendo bruto (€)','Retención (€)','Importe en cuenta (€)','Títulos tras la operación','Ganancia / pérdida venta (€)','No computable 2 meses (€)','Nota','Cartera'];
   const fmtMov={0:FD,4:FN,5:'#,##0.0000 "€"',6:FE,7:FE,8:FE,9:FE,10:FN,11:FE,12:FE};
   const anchoMov=[11,10,8,26,9,11,10,13,12,15,12,15,15,36,18];
-  const saldos={}; const todas=R.ord.map(m=>{if(m.tipo==='compra')saldos[m.valor]=(saldos[m.valor]||0)+m.titulos;else if(m.tipo==='venta')saldos[m.valor]=(saldos[m.valor]||0)-m.titulos;return filaMov(m,m.tipo==='dividendo'?'':Math.round((saldos[m.valor]||0)*10000)/10000);});
+  const saldos={}; const todas=R.ord.map(m=>{if(m.tipo==='compra'||m.tipo==='liberadas')saldos[m.valor]=(saldos[m.valor]||0)+m.titulos;else if(m.tipo==='venta')saldos[m.valor]=(saldos[m.valor]||0)-m.titulos;else if(m.tipo==='split'&&m.antiguas>0)saldos[m.valor]=(saldos[m.valor]||0)*m.nuevas/m.antiguas;return filaMov(m,m.tipo==='dividendo'||m.tipo==='derechos'?'':Math.round((saldos[m.valor]||0)*10000)/10000);});
   hoja('Todos los movimientos',cabMov,todas,fmtMov,anchoMov,{6:1,7:1,8:1,9:1,11:1,12:1},
     ['Importe en cuenta: compras en negativo (precio × títulos + gastos), ventas en positivo (precio × títulos − gastos), dividendos netos de retención.',AVISO]);
 
@@ -1284,7 +1544,7 @@ function renderCopia(){
     rd.onload=()=>{
       let d; try{d=JSON.parse(rd.result);}catch(x){$('iConf').innerHTML='<p class="err-msg">El archivo no es un JSON válido.</p>';return;}
       if(!d||!Array.isArray(d.movs)){$('iConf').innerHTML='<p class="err-msg">El archivo no parece una copia de esta app.</p>';return;}
-      const ok=d.movs.filter(m=>m&&/^\d{4}-\d{2}-\d{2}$/.test(m.fecha)&&['compra','venta','dividendo'].includes(m.tipo)&&m.valor);
+      const ok=d.movs.filter(m=>m&&/^\d{4}-\d{2}-\d{2}$/.test(m.fecha)&&['compra','venta','dividendo','liberadas','derechos','split'].includes(m.tipo)&&m.valor);
       $('iConf').innerHTML=`<div class="confirm"><span>${ok.length} movimientos válidos${Array.isArray(d.carteras)&&d.carteras.length>1?' en '+d.carteras.length+' carteras':''}. ¿Sustituir los datos actuales?</span><button class="btn danger small" id="iSi">Sustituir</button><button class="btn ghost small" id="iNo">Cancelar</button></div>`;
       $('iSi').onclick=()=>{store=normalizar(d);demo=false;guardar();tab='resumen';render();toast('Copia restaurada');if(ajustes.csvUrl)actualizarPrecios(true);};
       $('iNo').onclick=()=>{$('iConf').innerHTML='';e.target.value='';};
