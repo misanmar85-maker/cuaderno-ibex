@@ -308,7 +308,7 @@ nav.tabs button.aviso::after{content:"";position:absolute;top:6px;right:4px;widt
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '1.8 · 18/10/2026';
+const APP_VERSION = '1.9.1 · 18/10/2026';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
 const NOMBRES = Object.fromEntries(IBEX35);
 const nombre = t => NOMBRES[t] || '';
@@ -1064,6 +1064,19 @@ function renderResumen(R,hoy){
     <div><h3>Valor de la cartera</h3><div class="big">${eur(R.mercado)}</div><div class="muted" style="font-size:.8rem">${R.sinPrecio.length? 'algunos valores a coste, sin precio':'con los precios que has introducido'}</div></div>
     <div style="text-align:right"><h3>Beneficio total</h3><div class="sub ${cls(R.total)}" style="font-size:1.25rem">${sgn(R.total)}</div><div class="sub ${cls(R.total)}">${pct(pctTotal)} s/ compras</div></div>
   </div>
+  ${cartActual}
+  ${panelEvolucion()}
+  <div class="panel">
+      <h2>Ganancias y pérdidas por valor</h2>
+      <div class="gl-sum">
+        <div><span class="k">Ganancias · ${ganan.length} valor${ganan.length===1?'':'es'}</span><span class="v pos">${sgn(totG)}</span></div>
+        <div><span class="k">Pérdidas · ${pierden.length} valor${pierden.length===1?'':'es'}</span><span class="v ${totP<-0.005?'neg':''}">${totP<-0.005?sgn(totP):eur(0)}</span></div>
+      </div>
+      <div class="dbar-axis" aria-hidden="true"><span></span><div><span>← pérdida</span><span>0</span><span>ganancia →</span></div><span></span></div>
+      <div class="dbars">${filas.map(([v,x,o])=>{const w=(Math.abs(x)/maxAbs*100).toFixed(1);return `<div class="dbar"><span class="num"><b>${esc(v)}</b></span><div class="track" role="img" aria-label="${esc(v)}: ${sgn(x)}"><div class="half l">${x<0?`<div class="fill p" style="width:${w}%"></div>`:''}</div><div class="half r">${x>0?`<div class="fill g" style="width:${w}%"></div>`:''}</div></div><span class="num val ${cls(x)}">${sgn(x)}</span><span class="det">${detalle(o)}</span></div>`;}).join('')}</div>
+      <p class="note">Resultado de cada valor sumando ventas cerradas, plusvalía o minusvalía latente de lo que sigues teniendo y dividendos brutos. Neto de todos: <b class="${cls(totG+totP)}">${sgn(totG+totP)}</b>.</p>
+    </div>
+  ${alerts.length?`<ul class="alerts">${alerts.join('')}</ul>`:''}
   <div class="kpis">
     ${kpi('Latente', sgn(R.latente), R.costeVivo? pct(R.latente/R.costeVivo)+' s/ coste vivo':'', cls(R.latente))}
     ${kpi('Realizado', sgn(R.realizado), 'ventas cerradas', cls(R.realizado))}
@@ -1072,11 +1085,7 @@ function renderResumen(R,hoy){
     ${kpi('Periodo medio invertido', fmtDays(R.diasMedio), Math.round(R.diasMedio)+' días, ponderado por coste')}
     ${kpi('Dividendos netos', eur(R.divBruto-R.divRet), 'brutos '+eur(R.divBruto))}
   </div>
-  ${alerts.length?`<ul class="alerts">${alerts.join('')}</ul>`:''}
-  ${cartActual}
-  ${panelEvolucion()}
-  <div class="grid2">
-    <div class="panel">
+  <div class="panel">
       <h2>De dónde sale el beneficio</h2>
       <dl class="rows">
         <dt>Ganancias y pérdidas realizadas (ventas)</dt><dd class="${cls(R.realizado)}">${sgn(R.realizado)}</dd>
@@ -1089,17 +1098,6 @@ function renderResumen(R,hoy){
         <dt>Coste de lo que sigues teniendo</dt><dd>${eur(R.costeVivo)}</dd>
       </dl>
     </div>
-    <div class="panel">
-      <h2>Ganancias y pérdidas por valor</h2>
-      <div class="gl-sum">
-        <div><span class="k">Ganancias · ${ganan.length} valor${ganan.length===1?'':'es'}</span><span class="v pos">${sgn(totG)}</span></div>
-        <div><span class="k">Pérdidas · ${pierden.length} valor${pierden.length===1?'':'es'}</span><span class="v ${totP<-0.005?'neg':''}">${totP<-0.005?sgn(totP):eur(0)}</span></div>
-      </div>
-      <div class="dbar-axis" aria-hidden="true"><span></span><div><span>← pérdida</span><span>0</span><span>ganancia →</span></div><span></span></div>
-      <div class="dbars">${filas.map(([v,x,o])=>{const w=(Math.abs(x)/maxAbs*100).toFixed(1);return `<div class="dbar"><span class="num"><b>${esc(v)}</b></span><div class="track" role="img" aria-label="${esc(v)}: ${sgn(x)}"><div class="half l">${x<0?`<div class="fill p" style="width:${w}%"></div>`:''}</div><div class="half r">${x>0?`<div class="fill g" style="width:${w}%"></div>`:''}</div></div><span class="num val ${cls(x)}">${sgn(x)}</span><span class="det">${detalle(o)}</span></div>`;}).join('')}</div>
-      <p class="note">Resultado de cada valor sumando ventas cerradas, plusvalía o minusvalía latente de lo que sigues teniendo y dividendos brutos. Neto de todos: <b class="${cls(totG+totP)}">${sgn(totG+totP)}</b>.</p>
-    </div>
-  </div>
   <details class="panel"><summary><b>Cómo se calcula cada cifra</b></summary>
     <ul class="note-list">
       <li><b>Beneficio total</b>: ventas (con criterio FIFO y comisiones) + plusvalía latente al precio que introduces + dividendos brutos.</li>
@@ -1272,7 +1270,6 @@ function renderCartera(R,hoy){
   const tot={coste:P.reduce((s,p)=>s+p.coste,0),merc:P.reduce((s,p)=>s+(isFinite(p.mercado)?p.mercado:0),0),lat:P.reduce((s,p)=>s+(isFinite(p.latente)?p.latente:0),0),div:P.reduce((s,p)=>s+p.divVal,0)};
   el.innerHTML = `
   <div style="display:flex;flex-direction:column;gap:16px">
-  ${panelAnalisis(R)}
   <div class="toolbar"><h2>Posiciones abiertas</h2>
     ${ajustes.csvUrl?`<div class="actions"><span class="muted" style="font-size:.82rem">${ajustes.ultimaAct?'Precios de las '+new Date(ajustes.ultimaAct).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' · retraso aprox. 15 min':'Sin actualizar todavía'}</span><button class="btn small" id="bAct" ${cargandoPrecios||demo?'disabled':''}>${cargandoPrecios?'Actualizando…':'Actualizar precios'}</button></div>`:`<button class="btn ghost small" id="bConf">Conectar precios automáticos</button>`}</div>
   ${errPrecios?`<p class="err-msg">${esc(errPrecios)}</p>`:''}
@@ -1299,6 +1296,7 @@ function renderCartera(R,hoy){
     ${P.length?`<tfoot><tr><td>Total</td><td></td><td></td><td class="n">${eur(tot.coste)}</td><td></td><td></td><td class="n">${eur(tot.merc)}</td><td class="n ${cls(tot.lat)}">${sgn(tot.lat)}</td><td class="n ${cls(tot.lat)}">${tot.coste?pct(tot.lat/tot.coste):'—'}</td><td class="n">${eur(tot.div)}</td><td></td></tr></tfoot>`:''}
   </table></div>
   <p class="note">"Dividendos" es lo cobrado en bruto por cada valor desde el inicio. "Tiempo medio" es la antigüedad media de los títulos que conservas, ponderada por coste.</p>
+  ${panelAnalisis(R)}
   </div>`;
   const ba=$('bAct'); if(ba) ba.onclick=()=>actualizarPrecios(false);
   const bf=$('bConf'); if(bf) bf.onclick=()=>{tab='copia';render();};
@@ -1648,7 +1646,7 @@ function toCSV(){
 function renderCopia(){
   const el=$('v-copia');
   const ult = ajustes.ultimaCopia? new Date(ajustes.ultimaCopia).toLocaleString('es-ES',{dateStyle:'medium',timeStyle:'short'}) : 'nunca';
-  const puedeCompartir = !!(navigator.canShare && window.File && navigator.canShare({files:[new File(['x'],'a.json',{type:'application/json'})]}));
+  let puedeCompartir=false; try{ puedeCompartir = !!(navigator.share && navigator.canShare && window.File && navigator.canShare({files:[new File(['x'],'a.txt',{type:'text/plain'})]})); }catch(e){}
   el.innerHTML=panelCarteras()+`
   <div style="display:flex;flex-direction:column;gap:16px">
   <div class="panel">
@@ -1671,8 +1669,8 @@ function renderCopia(){
     </div>
     <div class="panel">
       <h2>Restaurar</h2>
-      <p class="note">Carga una copia JSON de esta app o de la versión anterior en Claude. Sustituirá todos los movimientos y precios actuales.</p>
-      <label>Archivo de copia (.json)<input type="file" id="iFile" accept=".json,application/json"></label>
+      <p class="note">Carga una copia (.json o .txt) hecha con esta app o con la versión de Claude. Sustituirá todos los movimientos y precios actuales.</p>
+      <label>Archivo de copia (.json o .txt)<input type="file" id="iFile" accept=".json,.txt,application/json,text/plain"></label>
       <div id="iConf"></div>
     </div>
   </div>
@@ -1684,7 +1682,17 @@ function renderCopia(){
   const descargar=(fn,data,type)=>{const url=URL.createObjectURL(new Blob([data],{type}));const a=document.createElement('a');a.href=url;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);};
   $('eJson').onclick=()=>{descargar(nombre('json'),json(),'application/json');marcar();toast('Copia descargada');render();};
   $('eCsv').onclick=()=>{descargar(nombre('csv'),toCSV(),'text/csv;charset=utf-8');toast('CSV descargado');};
-  const es=$('eShare'); if(es) es.onclick=async()=>{try{await navigator.share({files:[new File([json()],nombre('json'),{type:'application/json'})],title:'Copia Cartera de Inversiones'});marcar();render();toast('Copia compartida');}catch(e){if(e&&e.name!=='AbortError')$('eMsg').textContent='No se pudo compartir. Usa "Descargar copia".';}};
+  /* Se comparte como .txt (texto plano): es el tipo que aceptan todos los móviles y apps. El contenido es el mismo JSON. */
+  const es=$('eShare'); if(es) es.onclick=async()=>{
+    const datos=json(), fn='copia-'+nombre('txt');
+    try{ await navigator.share({files:[new File([datos],fn,{type:'text/plain'})]}); marcar(); render(); toast('Copia compartida'); }
+    catch(e){
+      if(e&&e.name==='AbortError') return;
+      const det=(e&&e.name?e.name:'Error')+(e&&e.message?': '+e.message:'');
+      try{ descargar(nombre('json'),datos,'application/json'); marcar(); render(); }catch(x){}
+      const m=$('eMsg'); if(m) m.textContent='No se pudo compartir ('+det+'). He descargado la copia en su lugar: búscala en Descargas o en Archivos.';
+    }
+  };
   $('aGuardar').onclick=()=>{const u=$('aUrl').value.trim();
     if(!/^https:\/\/docs\.google\.com\/spreadsheets\/.+/.test(u)){errPrecios='El enlace debe empezar por https://docs.google.com/spreadsheets/ y ser el de "Publicar en la web" en formato CSV.';render();return;}
     ajustes.csvUrl=u;guardarAjustes();
