@@ -348,7 +348,7 @@ body.bloqueado .wrap{display:none!important}
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '2.0 · 19/10/2026';
+const APP_VERSION = '2.0.1 · 19/10/2026';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
 const NOMBRES = Object.fromEntries(IBEX35);
 const nombre = t => NOMBRES[t] || '';
@@ -1015,8 +1015,12 @@ function wireCopiar(root){
 }
 
 const IDXKEY='cartera-indice';
+let idxEstado='', reintentoT=null;
+function reintentarPronto(){ if(reintentoT) return; reintentoT=setTimeout(()=>{ reintentoT=null; actualizarPrecios(true); }, 60000); }
 function textoSinIndice(){
   if(!ajustes.csvUrl) return 'Para compararte con el IBEX 35, conecta los precios automáticos en <b>Ajustes</b>.';
+  if(idxEstado==='cargando'||(!idxEstado&&!ajustes.ultimaAct)) return 'Google todavía está cargando el histórico del IBEX en tu hoja. La app lo volverá a leer sola en un minuto; no tienes que hacer nada.';
+  if(!idxEstado) return 'Cargando el histórico del IBEX desde tu hoja…';
   return 'Tu hoja de precios aún no tiene el histórico del índice. En tu hoja de Google, escribe en la celda <b>E1</b> <code>=GOOGLEFINANCE("BME:LYXIB";"close";DATE(2024;1;1);TODAY();"DAILY")</code>, en <b>G1</b> <code>LYXIB</code> y en <b>H1</b> <code>=GOOGLEFINANCE("BME:LYXIB";"price")</code>. La app lo leerá en la siguiente actualización de precios.';
 }
 /* ---------- Estado y almacenamiento ---------- */
@@ -1311,11 +1315,12 @@ async function actualizarPrecios(silencioso){
       if(!t || !(p>0)) return;
       state.precios[t]={p,f:hoy,h:hora,v:isFinite(v)?v:null}; n++;
     });
-    if(!n) throw new Error('No se encontró ningún precio. Revisa que la columna A tenga el valor y la B el precio.');
+    if(!n){ if(/cargando|loading/i.test(filas.map(f=>f[1]||'').join(' '))){ reintentarPronto(); throw new Error('Google todavía está calculando los precios de tu hoja (aparece «Cargando…»). La app lo volverá a intentar sola en un minuto.'); } throw new Error('No se encontró ningún precio. Revisa que la columna A tenga el valor y la B el precio.'); }
     /* Histórico del fondo IBEX 35 (columnas E y F) y su precio de hoy (G = LYXIB, H = precio) */
     const h=[]; let pIdx=NaN;
     filas.forEach(f=>{ const d=parseFechaCSV(f[4]); const c=numCSV(f[5]); if(d&&c>0) h.push([d,c]); if((f[6]||'').trim().toUpperCase()===IDX_TICKER){ const p=numCSV(f[7]); if(p>0) pIdx=p; } });
-    if(h.length>20){ h.sort((a,b)=>a[0]<b[0]?-1:1); indice={h,p:pIdx,f:pIdx>0?hoy:''}; try{localStorage.setItem(IDXKEY,JSON.stringify(indice));}catch(e){} }
+    if(h.length>20){ h.sort((a,b)=>a[0]<b[0]?-1:1); indice={h,p:pIdx,f:pIdx>0?hoy:''}; idxEstado='ok'; try{localStorage.setItem(IDXKEY,JSON.stringify(indice));}catch(e){} }
+    else { idxEstado = /cargando|loading/i.test(String((filas[0]||[])[4]||'')+String((filas[0]||[])[7]||'')) ? 'cargando' : 'falta'; if(idxEstado==='cargando') reintentarPronto(); }
     ajustes.ultimaAct=new Date().toISOString(); guardarAjustes(); guardar(); registrarHistorial();
     if(!silencioso) toast(n+' precios actualizados');
   }catch(e){
