@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Tesorería</title>
+<meta name="apple-mobile-web-app-title" content="Tesorería">
+<meta name="theme-color" content="#1a1a19">
+<link rel="apple-touch-icon" href="tesoreria-icono.png">
+<link rel="icon" type="image/png" href="icono-msm.png">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: #1a1a19; color: #f0efec; font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+  .caja { width: 100%; max-width: 420px; text-align: center; }
+  img { width: 72px; height: 72px; border-radius: 16px; }
+  h1 { font-size: 22px; margin: 14px 0 4px; }
+  p { color: #c3c2b7; font-size: 14px; margin: 6px 0; }
+  form { margin-top: 18px; text-align: left; }
+  label { font-size: 13px; color: #c3c2b7; }
+  input { width: 100%; margin-top: 6px; padding: 12px; font: inherit; font-size: 15px; color: #f0efec; background: #232321; border: 1px solid #3a3a37; border-radius: 10px; }
+  input:focus { outline: 2px solid #3987e5; outline-offset: 1px; }
+  button, a.btn { display: block; width: 100%; margin-top: 12px; padding: 13px; font: inherit; font-weight: 600; text-align: center; text-decoration: none;
+    color: #1a1a19; background: #f0efec; border: none; border-radius: 10px; cursor: pointer; }
+  .error { color: #f07a7a; font-size: 13px; min-height: 18px; margin-top: 6px; }
+  .enlace { display: inline-block; margin-top: 18px; color: #9d9c93; font-size: 13px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main class="caja">
+  <img src="tesoreria-icono.png" alt="">
+  <h1>Tesorería</h1>
+
+  <section id="abriendo" hidden>
+    <p>Abriendo tu panel…</p>
+    <a class="btn" id="abrirYa" href="#">Abrir ahora</a>
+    <a class="enlace" href="#cambiar" id="cambiar">Cambiar la dirección guardada</a>
+  </section>
+
+  <section id="configurar" hidden>
+    <p>Pega una vez la dirección de tu panel. Se guarda solo en este móvil, no en internet.</p>
+    <form id="form">
+      <label for="url">Dirección del panel (termina en /exec)</label>
+      <input id="url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec">
+      <div class="error" id="error" role="alert"></div>
+      <button type="submit">Guardar y abrir</button>
+    </form>
+  </section>
+</main>
+<script>
+  var CLAVE = 'tesoreria_url_panel';
+  // Solo se acepta una dirección de Google Apps Script: así esta página nunca puede llevar a otro sitio.
+  function valida(u) { return /^https:\/\/script\.google\.com\/(a\/[^\/\s]+\/)?macros\/s\/[A-Za-z0-9_-]+\/exec([?#][^\s]*)?$/.test(u); }
+  function leer() { try { return localStorage.getItem(CLAVE); } catch (e) { return null; } }
+  function guardar(u) { try { localStorage.setItem(CLAVE, u); return true; } catch (e) { return false; } }
+  function mostrarFormulario() {
+    document.getElementById('abriendo').hidden = true;
+    document.getElementById('configurar').hidden = false;
+    var g = leer(); if (g && valida(g)) document.getElementById('url').value = g;
+  }
+  function abrir(u) {
+    document.getElementById('configurar').hidden = true;
+    document.getElementById('abriendo').hidden = false;
+    document.getElementById('abrirYa').href = u;
+    setTimeout(function () { location.replace(u); }, 250);
+  }
+  document.getElementById('cambiar').addEventListener('click', function (ev) { ev.preventDefault(); mostrarFormulario(); });
+  document.getElementById('form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var u = document.getElementById('url').value.trim(), err = document.getElementById('error');
+    if (!valida(u)) { err.textContent = 'Esa dirección no parece la de tu panel. Debe empezar por https://script.google.com/ y terminar en /exec.'; return; }
+    if (!guardar(u)) err.textContent = 'No se ha podido guardar en este móvil; se abrirá igualmente.';
+    abrir(u);
+  });
+  var guardada = leer();
+  if (location.hash === '#cambiar' || !guardada || !valida(guardada)) mostrarFormulario();
+  else abrir(guardada);
+</script>
+</body>
+</html>
