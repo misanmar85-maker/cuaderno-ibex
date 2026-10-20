@@ -348,7 +348,7 @@ body.bloqueado .wrap{display:none!important}
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '2.0.1 · 19/10/2026 · JASZ';
+const APP_VERSION = '2.1 · 20/10/2026 · JASZ';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
 const NOMBRES = Object.fromEntries(IBEX35);
 const nombre = t => NOMBRES[t] || '';
@@ -468,7 +468,7 @@ function registrarHistorial(){
   if(cambio) guardar();
   return cambio;
 }
-function serieEvolucion(){
+function serieRegistrada(){
   const ids=store.activa==='todas'?store.carteras.map(c=>c.id):[store.activa];
   const hs=ids.map(id=>(store.hist||{})[id]||{});
   const fechas=[...new Set(hs.flatMap(h=>Object.keys(h)))].sort();
@@ -497,6 +497,7 @@ function panelEvolucion(){
       <circle cx="${X(u.f).toFixed(1)}" cy="${Y(u.v).toFixed(1)}" r="4.5" fill="var(--accent)"/>
     </svg><div class="evo-x"><span>${fmtD(s[0].f)}</span><span>${fmtD(u.f)}</span></div></div>
     <div class="cv-leg"><span><i style="background:var(--accent)"></i>Valor de mercado: ${eur(u.v)}</span><span><i style="background:var(--muted)"></i>Invertido (coste): ${eur(u.c)}</span><span class="${cls(dif)}">Diferencia: ${sgn(dif)}</span></div>
+    ${s.recHasta?`<p class="note">Hasta el ${fmtD(s.recHasta)}, valores reconstruidos con los precios de cierre semanales de Google Finance${s.aprox?' (algún valor sin histórico se cuenta a coste)':''}. Desde entonces, el valor que guarda la app cada día que la abres con precios.</p>`:''}
   </div>`;
 }
 
@@ -1014,7 +1015,46 @@ function wireCopiar(root){
   });
 }
 
-const IDXKEY='jasz-cartera-indice';
+/* ---------- Evolución reconstruida con cierres semanales ----------
+   Para los días anteriores al primer registro diario, el valor de la cartera se recalcula con los precios de
+   cierre semanales de Google Finance (columnas J en adelante de la hoja de precios). */
+let histPrecios={}; // ticker -> [[aaaa-mm-dd, cierre]] ascendente
+function fechaHist(s){ s=String(s||'').trim(); if(/^\d{4,6}([.,]\d+)?$/.test(s)){ const n=Math.floor(Number(s.replace(',','.'))); const d=new Date(Date.UTC(1899,11,30)+n*86400000); return d.toISOString().slice(0,10); } return parseFechaCSV(s); }
+function leerHistPrecios(filas){
+  const cab=filas[0]||[], out={};
+  for(let k=9;k<cab.length-1;k++){
+    const t=String(cab[k]||'').trim().toUpperCase(), c2=String(cab[k+1]||'').trim().toLowerCase();
+    if(!/^[A-Z][A-Z0-9.]{0,7}$/.test(t)||(c2!=='close'&&c2!=='sin datos')) continue;
+    const serie=[]; for(let r=1;r<filas.length;r++){ const f=filas[r]; const d=fechaHist(f[k]); const c=numCSV(f[k+1]); if(d&&c>0) serie.push([d,c]); }
+    if(serie.length){ serie.sort((a,b)=>a[0]<b[0]?-1:1); out[t]=serie; }
+    k++;
+  }
+  return out;
+}
+function cierreValor(t,f){ const h=histPrecios[t]; if(!h||!h.length||f<h[0][0]) return NaN; let lo=0,hi=h.length-1; while(lo<hi){const m=(lo+hi+1)>>1; if(h[m][0]<=f) lo=m; else hi=m-1;} return h[lo][1]; }
+function serieReconstruida(hasta){
+  const movs=state.movs; if(!movs.length) return [];
+  const tick=[...new Set(movs.map(m=>m.valor))];
+  if(!tick.some(t=>histPrecios[t]&&histPrecios[t].length)) return [];
+  const ini=ordenar(movs)[0].fecha, fechas=new Set();
+  tick.forEach(t=>(histPrecios[t]||[]).forEach(([d])=>{ if(d>=ini&&d<hasta) fechas.add(d); }));
+  movs.forEach(m=>{ if(m.fecha<hasta) fechas.add(m.fecha); });
+  return [...fechas].sort().map(f=>{
+    const pr={}; tick.forEach(t=>{ const c=cierreValor(t,f); if(c>0) pr[t]={p:c,f}; });
+    const R=calcular(movs.filter(m=>m.fecha<=f),pr,f);
+    return {f,v:Math.round(R.mercado*100)/100,c:Math.round(R.costeVivo*100)/100,aprox:R.sinPrecio.length>0};
+  });
+}
+function serieEvolucion(){
+  const reg=serieRegistrada();
+  const hasta=reg.length?reg[0].f:todayStr();
+  const rec=serieReconstruida(hasta);
+  const s=rec.concat(reg);
+  if(rec.length){ s.recHasta=rec[rec.length-1].f; s.aprox=rec.some(p=>p.aprox); }
+  return s;
+}
+
+const IDXKEY='jasz-cartera-indice', HPKEY='jasz-cartera-hprecios';
 let idxEstado='', reintentoT=null;
 function reintentarPronto(){ if(reintentoT) return; reintentoT=setTimeout(()=>{ reintentoT=null; actualizarPrecios(true); }, 60000); }
 function textoSinIndice(){
@@ -1140,6 +1180,7 @@ async function iniciar(){
   modo='local';
   try{ajustes=Object.assign(ajustes,JSON.parse(localStorage.getItem(AJKEY)||'{}'));}catch(e){}
   try{ const ix=JSON.parse(localStorage.getItem(IDXKEY)||'null'); if(ix&&Array.isArray(ix.h)) indice=ix; }catch(e){}
+  try{ const hp=JSON.parse(localStorage.getItem(HPKEY)||'null'); if(hp&&typeof hp==='object') histPrecios=hp; }catch(e){}
   let d=null; try{ d=JSON.parse(localStorage.getItem(LSKEY)||'null'); }catch(e){}
   if(d && d.enc){ setStatus('','Bloqueada'); mostrarBloqueo(); return; }
   cargarDatos(d);
@@ -1321,6 +1362,8 @@ async function actualizarPrecios(silencioso){
     filas.forEach(f=>{ const d=parseFechaCSV(f[4]); const c=numCSV(f[5]); if(d&&c>0) h.push([d,c]); if((f[6]||'').trim().toUpperCase()===IDX_TICKER){ const p=numCSV(f[7]); if(p>0) pIdx=p; } });
     if(h.length>20){ h.sort((a,b)=>a[0]<b[0]?-1:1); indice={h,p:pIdx,f:pIdx>0?hoy:''}; idxEstado='ok'; try{localStorage.setItem(IDXKEY,JSON.stringify(indice));}catch(e){} }
     else { idxEstado = /cargando|loading/i.test(String((filas[0]||[])[4]||'')+String((filas[0]||[])[7]||'')) ? 'cargando' : 'falta'; if(idxEstado==='cargando') reintentarPronto(); }
+    /* Cierres semanales de cada valor (columnas J en adelante) para reconstruir la gráfica de evolución */
+    const hp=leerHistPrecios(filas); if(Object.keys(hp).length){ histPrecios=hp; try{localStorage.setItem(HPKEY,JSON.stringify(hp));}catch(e){} }
     ajustes.ultimaAct=new Date().toISOString(); guardarAjustes(); guardar(); registrarHistorial();
     if(!silencioso) toast(n+' precios actualizados');
   }catch(e){
@@ -2095,7 +2138,7 @@ $('fab').onclick=()=>{tab='movimientos';editId=null;prefill=null;borrarId=null;r
 $('tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(!b)return;tab=b.dataset.tab;editId=null;borrarId=null;prefill=null;render();});
 
 /* Exponer el motor para pruebas */
-window.__cuaderno={calcular,ejemplo,xirr,cuotaAhorro,addMonths,get store(){return store;},get state(){return state;}};
+window.__cuaderno={serieEvolucion,calcular,ejemplo,xirr,cuotaAhorro,addMonths,get store(){return store;},get state(){return state;}};
 iniciar();
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
 })();
