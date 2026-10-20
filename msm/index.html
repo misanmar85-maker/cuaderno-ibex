@@ -300,6 +300,14 @@ body.oculto .pv-bars{filter:blur(7px);pointer-events:none}
 .mv-filtros input[type=search]{flex:1 1 220px;min-width:0}
 .mv-filtros label{min-width:120px;flex:0 1 auto}
 .mv-sum{margin:0;font-size:.8rem;color:var(--muted);font-family:var(--f-num)}
+.evo{position:relative}
+.evo svg{touch-action:pan-y;cursor:crosshair;outline:none}
+.evo svg:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.evo-cur{position:absolute;width:0;border-left:1px dashed var(--fg);opacity:.55;pointer-events:none}
+.evo-dot{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;border:2px solid var(--surface);pointer-events:none}
+.evo-dot.v{background:var(--accent)} .evo-dot.c{background:var(--muted)}
+.evo-tip{position:absolute;z-index:2;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font:500 .76rem/1.45 var(--f-num);box-shadow:0 3px 10px rgba(0,0,0,.14);white-space:nowrap}
+.evo-tip .k{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
 
 /* v2.0: bloqueo con código */
 body.bloqueado .wrap{display:none!important}
@@ -348,7 +356,7 @@ body.bloqueado .wrap{display:none!important}
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '2.1 · 20/10/2026 · MSM';
+const APP_VERSION = '2.2 · 20/10/2026 · MSM';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
 const NOMBRES = Object.fromEntries(IBEX35);
 const nombre = t => NOMBRES[t] || '';
@@ -475,7 +483,7 @@ function serieRegistrada(){
   const ult=hs.map(()=>null);
   return fechas.map(f=>{ let v=0,c=0; hs.forEach((h,i)=>{ if(h[f]) ult[i]=h[f]; if(ult[i]){v+=ult[i][0];c+=ult[i][1];} }); return {f,v,c}; });
 }
-function panelEvolucion(){
+function panelEvolucion_v21(){
   const s=serieEvolucion();
   if(!s.length) return `<div class="panel"><h2>Evolución de la cartera</h2><p class="note">La gráfica empieza a llenarse hoy: cada día que abras la app con precios actualizados se guarda el valor de tu cartera.</p></div>`;
   if(s.length<2){ const p=s[0]; return `<div class="panel"><h2>Evolución de la cartera</h2><p class="note">Primer registro el ${fmtD(p.f)}: valor ${eur(p.v)}, invertido ${eur(p.c)}. La gráfica aparecerá en cuanto haya un segundo día con precios. Se irá completando sola cada día que abras la app.</p></div>`; }
@@ -1054,6 +1062,64 @@ function serieEvolucion(){
   return s;
 }
 
+/* ---------- Gráfica de evolución interactiva (v2.2) ---------- */
+let evoSerie=null;
+function panelEvolucion(){
+  const s=serieEvolucion(); evoSerie=null;
+  if(!s.length) return `<div class="panel"><h2>Evolución de la cartera</h2><p class="note">La gráfica empieza a llenarse hoy: cada día que abras la app con precios actualizados se guarda el valor de tu cartera.</p></div>`;
+  if(s.length<2){ const p=s[0]; return `<div class="panel"><h2>Evolución de la cartera</h2><p class="note">Primer registro el ${fmtD(p.f)}: valor ${eur(p.v)}, invertido ${eur(p.c)}. La gráfica aparecerá en cuanto haya un segundo día con precios.</p></div>`; }
+  const W=640,H=200,PL=6,PR=6,PT=12,PB=6;
+  const t0=parseD(s[0].f), t1=parseD(s[s.length-1].f), dt=Math.max(1,t1-t0);
+  const vals=s.flatMap(p=>[p.v,p.c]); let mn=Math.min(...vals), mx=Math.max(...vals); const pad=(mx-mn)*0.12||mx*0.05||1; mn-=pad; mx+=pad;
+  const X=f=>PL+(parseD(f)-t0)/dt*(W-PL-PR), Y=v=>PT+(1-(v-mn)/(mx-mn))*(H-PT-PB);
+  evoSerie={s,W,H,X,Y,t0,dt,PL,PR};
+  const lv=s.map(p=>`${X(p.f).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' '), lc=s.map(p=>`${X(p.f).toFixed(1)},${Y(p.c).toFixed(1)}`).join(' ');
+  const area=`${X(s[0].f).toFixed(1)},${(H-PB).toFixed(1)} ${lv} ${X(s[s.length-1].f).toFixed(1)},${(H-PB).toFixed(1)}`;
+  const u=s[s.length-1], dif=u.v-u.c;
+  const grid=[0.25,0.5,0.75].map(k=>`<line x1="${PL}" x2="${W-PR}" y1="${(PT+k*(H-PT-PB)).toFixed(1)}" y2="${(PT+k*(H-PT-PB)).toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`).join('');
+  return `<div class="panel">
+    <div class="cv-head"><h2>Evolución de la cartera</h2><span class="muted" style="font-size:.8rem">desde ${fmtD(s[0].f)}</span></div>
+    <div class="evo" id="evo"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Valor de la cartera frente a lo invertido desde el ${fmtD(s[0].f)}. Toca o desliza para ver cada fecha." preserveAspectRatio="none">
+      ${grid}
+      <polygon points="${area}" fill="var(--accent-soft)"/>
+      <polyline points="${lc}" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"/>
+      <polyline points="${lv}" fill="none" stroke="var(--accent)" stroke-width="2.5" vector-effect="non-scaling-stroke"/>
+    </svg>
+    <div class="evo-cur" hidden></div><div class="evo-dot c" hidden></div><div class="evo-dot v" hidden></div><div class="evo-tip" hidden aria-live="polite"></div>
+    <div class="evo-x"><span>${fmtD(s[0].f)}</span><span>${fmtD(u.f)}</span></div></div>
+    <div class="cv-leg"><span><i style="background:var(--accent)"></i>Valor de mercado: ${eur(u.v)}</span><span><i style="background:var(--muted)"></i>Invertido (coste): ${eur(u.c)}</span><span class="${cls(dif)}">Diferencia: ${sgn(dif)}</span></div>
+    <p class="note">Toca o desliza el dedo por la gráfica para ver el valor de cada fecha.${s.recHasta?` Hasta el ${fmtD(s.recHasta)}, valores reconstruidos con los precios de cierre semanales de Google Finance${s.aprox?' (algún valor sin histórico se cuenta a coste)':''}; desde entonces, el valor que guarda la app cada día que la abres con precios.`:''}</p>
+  </div>`;
+}
+function wireEvolucion(){
+  const box=document.getElementById('evo'); if(!box||!evoSerie) return;
+  const svg=box.querySelector('svg'), cur=box.querySelector('.evo-cur'), dv=box.querySelector('.evo-dot.v'), dc=box.querySelector('.evo-dot.c'), tip=box.querySelector('.evo-tip');
+  const E=evoSerie, ts=E.s.map(p=>parseD(p.f));
+  const mostrar=clientX=>{
+    const r=svg.getBoundingClientRect(); if(!r.width) return;
+    const xv=(clientX-r.left)/r.width*E.W; const t=E.t0+(xv-E.PL)/(E.W-E.PL-E.PR)*E.dt;
+    let lo=0,hi=ts.length-1; while(hi-lo>1){const m=(lo+hi)>>1; if(ts[m]<=t) lo=m; else hi=m;}
+    const i=Math.abs(ts[hi]-t)<Math.abs(ts[lo]-t)?hi:lo, p=E.s[i];
+    const px=E.X(p.f)/E.W*r.width, yv=E.Y(p.v)/E.H*r.height, yc=E.Y(p.c)/E.H*r.height, top=r.top-box.getBoundingClientRect().top;
+    cur.style.left=px+'px'; cur.style.top=top+'px'; cur.style.height=r.height+'px';
+    dv.style.left=px+'px'; dv.style.top=(top+yv)+'px'; dc.style.left=px+'px'; dc.style.top=(top+yc)+'px';
+    const d=p.v-p.c, rec=E.s.recHasta&&p.f<=E.s.recHasta;
+    tip.innerHTML=`<b>${fmtD(p.f)}</b>${rec?' <span class="muted">· semanal</span>':''}<br><i class="k" style="background:var(--accent)"></i>Valor ${eur(p.v)}<br><i class="k" style="background:var(--muted)"></i>Invertido ${eur(p.c)}<br><span class="${cls(d)}">${oculto?'Resultado':d>=0?'Ganas':'Pierdes'} ${sgn(d)}${p.c>0?' ('+pct(d/p.c)+')':''}</span>`;
+    [cur,dv,dc,tip].forEach(e=>e.hidden=false);
+    const tw=tip.offsetWidth, bw=box.clientWidth; let lx=px+12; if(lx+tw>bw) lx=px-12-tw; if(lx<0) lx=Math.max(0,Math.min(bw-tw,px-tw/2));
+    tip.style.left=lx+'px'; tip.style.top=top+'px';
+  };
+  const ocultar=()=>[cur,dv,dc,tip].forEach(e=>e.hidden=true);
+  svg.addEventListener('pointerdown',e=>{ mostrar(e.clientX); });
+  svg.addEventListener('pointermove',e=>{ if(e.pointerType==='mouse'||e.buttons||e.pressure>0) mostrar(e.clientX); });
+  svg.addEventListener('pointerleave',e=>{ if(e.pointerType==='mouse') ocultar(); });
+  svg.addEventListener('touchmove',e=>{ const t=e.touches[0]; if(t) mostrar(t.clientX); },{passive:true});
+  document.addEventListener('pointerdown',e=>{ if(!box.contains(e.target)) ocultar(); },{once:false});
+  svg.setAttribute('tabindex','0');
+  let idx=E.s.length-1;
+  svg.addEventListener('keydown',e=>{ if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight') return; e.preventDefault(); idx=Math.max(0,Math.min(E.s.length-1,idx+(e.key==='ArrowRight'?1:-1))); const r=svg.getBoundingClientRect(); mostrar(r.left+E.X(E.s[idx].f)/E.W*r.width); });
+}
+
 const IDXKEY='cartera-indice', HPKEY='cartera-hprecios';
 let idxEstado='', reintentoT=null;
 function reintentarPronto(){ if(reintentoT) return; reintentoT=setTimeout(()=>{ reintentoT=null; actualizarPrecios(true); }, 60000); }
@@ -1514,6 +1580,7 @@ function renderResumen(R,hoy){
     </ul>
   </details>
   </div>`;
+  wireEvolucion();
 }
 
 function renderMovs(R){
