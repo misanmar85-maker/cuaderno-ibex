@@ -312,6 +312,20 @@ body.oculto .pv-bars{filter:blur(7px);pointer-events:none}
 .evo-dot.v{background:var(--accent)} .evo-dot.c{background:var(--muted)}
 .evo-tip{position:absolute;z-index:2;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font:500 .76rem/1.45 var(--f-num);box-shadow:0 3px 10px rgba(0,0,0,.14);white-space:nowrap}
 .evo-tip .k{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+/* v2.4 */
+#ficha{position:fixed;inset:0;z-index:90;background:rgba(10,18,24,.45);display:flex;flex-direction:column;align-items:center;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:max(16px,env(safe-area-inset-top,0px))}
+#ficha[hidden]{display:none}
+.fi-box{margin-top:auto;flex:none;background:var(--bg);width:100%;max-width:760px;min-height:70vh;border-radius:14px 14px 0 0;padding:16px max(16px,env(safe-area-inset-left,0px)) calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px;box-shadow:0 -6px 24px rgba(0,0,0,.2)}
+.fi-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;position:sticky;top:-16px;z-index:2;background:var(--bg);padding:8px 0 6px;margin-top:-8px}
+.fi-head h2{font-size:1.3rem}
+.fi-head .muted{font-size:.82rem}
+.fi-graf svg{width:100%;height:auto;display:block;background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.fi-nota{margin-top:4px;padding:4px 8px;background:var(--accent-soft);border-radius:4px;font-size:.8rem;white-space:normal}
+body.con-ficha{overflow:hidden}
+body.oculto .fi-graf,body.oculto .fi-box .cv-sum{filter:blur(7px)}
+.imp-list{max-height:360px;overflow:auto}
+.imp-dest{margin-top:6px}
+.chip.err{background:var(--loss-soft);color:var(--loss)}
 
 /* v2.0: bloqueo con código */
 body.bloqueado .wrap{display:none!important}
@@ -360,7 +374,7 @@ body.bloqueado .wrap{display:none!important}
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '2.3 · 21/10/2026 · JASZ';
+const APP_VERSION = '2.4 · 21/10/2026 · JASZ';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
 const NOMBRES = Object.fromEntries(IBEX35);
 const nombre = t => NOMBRES[t] || '';
@@ -1124,6 +1138,346 @@ function wireEvolucion(){
   svg.addEventListener('keydown',e=>{ if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight') return; e.preventDefault(); idx=Math.max(0,Math.min(E.s.length-1,idx+(e.key==='ArrowRight'?1:-1))); const r=svg.getBoundingClientRect(); mostrar(r.left+E.X(E.s[idx].f)/E.W*r.width); });
 }
 
+/* =====================================================================================
+   v2.4 · Planificador fiscal de fin de año
+   ===================================================================================== */
+function panelPlanificador(R,hoy){
+  const y=hoy.slice(0,4), fin=y+'-12-31';
+  const base=R.anios[y]||{saldoGP:0,divBruto:0,divRet:0,derRet:0,base:0,cuota:0,resultado:0};
+  const P=R.posiciones.filter(p=>isFinite(p.precio)&&isFinite(p.latente)&&Math.abs(p.latente)>0.005);
+  if(!P.length && !R.anios[y]) return '';
+  const movsF=movsFiscales();
+  const sim=P.map(p=>{
+    const extra={id:'sim',seq:1e9,tipo:'venta',fecha:hoy,valor:p.valor,titulos:p.qty,precio:p.precio,gastos:0,bruto:0,retencion:0,cartera:(movsF.find(m=>m.valor===p.valor)||{}).cartera};
+    const R2=calcular(movsF.concat([extra]),store.precios,hoy); const a2=R2.anios[y];
+    const v=R2.ventas.find(x=>x.mov.id==='sim');
+    return {p,cuota2:a2?a2.cuota:0,res2:a2?a2.resultado:0,difCuota:(a2?a2.cuota:0)-(base.cuota||0),noComp:v?v.noComputable:0};
+  }).sort((a,b)=>a.difCuota-b.difCuota);
+  const perd=sim.filter(s=>s.p.latente<0), gan=sim.filter(s=>s.p.latente>0);
+  const fila=s=>`<div class="mk-row"><div class="nm"><span class="full">${esc(nombre(s.p.valor)||s.p.valor)}</span><small style="white-space:normal">${NUM.format(s.p.qty)} tít. a ${EUR4.format(s.p.precio)} € · ${s.p.latente<0?'minusvalía':'plusvalía'} latente <span class="${cls(s.p.latente)}">${sgn(s.p.latente)}</span>${s.noComp>0.005?` · <span class="chip warn">regla 2 meses</span> ${eur(s.noComp)} no computarían`:''}</small></div>
+    <div class="px"><div class="${s.difCuota<-0.005?'pos':s.difCuota>0.005?'neg':''}">${s.difCuota<-0.005?'−'+eur(-s.difCuota):s.difCuota>0.005?'+'+eur(s.difCuota):eur(0)}</div><div class="d muted">en cuota</div></div><span></span></div>`;
+  return `<details class="panel fold" data-fold="plan" ${fold.plan!==false?'open':''}>
+    <summary><span class="fold-t">Antes del 31/12/${y}: planificador fiscal</span><span class="fold-s">${days(hoy,fin)} días para cerrar el ejercicio</span></summary>
+    <div class="fold-b">
+    <div class="cv-sum">
+      <div><span class="k">Saldo de ventas ${y}</span><span class="v ${cls(base.saldoGP)}">${sgn(base.saldoGP||0)}</span><span class="s muted">ganancias − pérdidas</span></div>
+      <div><span class="k">Dividendos ${y}</span><span class="v">${eur(base.divBruto||0)}</span><span class="s muted">brutos</span></div>
+      <div><span class="k">Cuota estimada</span><span class="v">${eur(base.cuota||0)}</span><span class="s muted">${base.resultado>=0?'a pagar ≈ '+eur(base.resultado||0):'a devolver ≈ '+eur(-(base.resultado||0))}</span></div>
+    </div>
+    ${P.length?`<p class="note">Cuánto cambiaría tu cuota de ${y} si vendieras hoy <b>todos</b> los títulos de cada valor al último precio (sin comisiones). En verde, lo que pagarías de menos; en rojo, de más.</p>
+    ${perd.length?`<h3 class="rw-h">Con minusvalía latente</h3><div class="mk-list">${perd.map(fila).join('')}</div>`:''}
+    ${gan.length?`<h3 class="rw-h">Con plusvalía latente</h3><div class="mk-list">${gan.map(fila).join('')}</div>`:''}`:'<p class="note">No tienes posiciones abiertas con precio actual.</p>'}
+    <ul class="note-list">
+      <li><b>Regla de los dos meses:</b> si vendes con pérdida y vuelves a comprar ese mismo valor en los dos meses anteriores o posteriores, la pérdida no computa ese año (art. 33.5.f LIRPF). Si vendieras hoy, no deberías recomprar antes del ${fmtD(addMonths(hoy,2))} para que cuente.</li>
+      <li>Las pérdidas compensan primero las ganancias del año; lo que sobre, hasta el 25 % de los dividendos, y el resto se arrastra 4 años.</li>
+      <li>Es un cálculo con tus datos, <b>no una recomendación</b> de vender: decide según tu estrategia y ten en cuenta comisiones y la diferencia entre el último precio y el de ejecución.</li>
+    </ul>
+    </div></details>`;
+}
+
+/* =====================================================================================
+   v2.4 · Ficha de cada valor
+   ===================================================================================== */
+function abrirFicha(t){
+  const hoy=todayStr();
+  const movsT=ordenar(state.movs.filter(m=>m.valor===t));
+  if(!movsT.length) return;
+  const R=calcular(state.movs,state.precios,hoy);
+  const pos=R.posiciones.find(p=>p.valor===t);
+  const real=R.ventas.filter(v=>v.valor===t).reduce((s,v)=>s+v.gp,0)+R.derechos.filter(d=>d.valor===t).reduce((s,d)=>s+d.importe,0);
+  const divs=R.divs.filter(d=>d.valor===t).reduce((s,d)=>s+d.bruto,0);
+  const lat=pos&&isFinite(pos.latente)?pos.latente:0;
+  const desde=addMonths(movsT[0].fecha,-1);
+  let serie=(histPrecios[t]||[]).filter(([d])=>d>=desde);
+  const pa=state.precios[t]; if(pa&&pa.p>0&&(!serie.length||serie[serie.length-1][0]<(pa.f||hoy))) serie=serie.concat([[pa.f||hoy,pa.p]]);
+  const marcas=movsT.filter(m=>['compra','venta','dividendo'].includes(m.tipo)).map(m=>({m,f:m.fecha,p:m.tipo==='dividendo'?(cierreValor(t,m.fecha)||NaN):m.precio})).filter(x=>x.p>0);
+  let graf='<p class="note">No hay histórico de precios de este valor. Conecta los precios automáticos para ver la gráfica.</p>';
+  if(serie.length>1){
+    const W=640,H=260,PL=8,PR=8,PT=14,PB=10;
+    const t0=parseD(serie[0][0]), t1=parseD(serie[serie.length-1][0]), dt=Math.max(1,t1-t0);
+    const ys=serie.map(x=>x[1]).concat(marcas.map(x=>x.p)).concat(pos?[pos.pm]:[]);
+    let mn=Math.min(...ys), mx=Math.max(...ys); const pad=(mx-mn)*0.1||mx*0.05||1; mn-=pad; mx+=pad;
+    const X=f=>PL+(Math.min(Math.max(parseD(f),t0),t1)-t0)/dt*(W-PL-PR), Y=v=>PT+(1-(v-mn)/(mx-mn))*(H-PT-PB);
+    const linea=serie.map(([d,c])=>`${X(d).toFixed(1)},${Y(c).toFixed(1)}`).join(' ');
+    const mk=marcas.map(x=>{const cx=X(x.f).toFixed(1), cy=Y(x.p).toFixed(1);
+      if(x.m.tipo==='compra') return `<path d="M${cx} ${(+cy-10).toFixed(1)} l9 15 h-18z" fill="var(--gain)" stroke="var(--surface)" stroke-width="1.5"><title>Compra ${fmtD(x.f)}</title></path>`;
+      if(x.m.tipo==='venta') return `<path d="M${cx} ${(+cy+10).toFixed(1)} l9 -15 h-18z" fill="var(--loss)" stroke="var(--surface)" stroke-width="1.5"><title>Venta ${fmtD(x.f)}</title></path>`;
+      return `<circle cx="${cx}" cy="${cy}" r="7" fill="var(--warn)" stroke="var(--surface)" stroke-width="1.5"><title>Dividendo ${fmtD(x.f)}</title></circle>`;}).join('');
+    const pm=pos?`<line x1="${PL}" x2="${W-PR}" y1="${Y(pos.pm).toFixed(1)}" y2="${Y(pos.pm).toFixed(1)}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="6 5"/><text x="${W-PR}" y="${(Y(pos.pm)-5).toFixed(1)}" text-anchor="end" font-size="13" fill="var(--muted)">tu precio medio ${EUR40.format(pos.pm)} €</text>`:'';
+    graf=`<div class="fi-graf"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Precio de ${esc(nombre(t)||t)} desde el ${fmtD(serie[0][0])} con tus compras, ventas y dividendos">${pm}<polyline points="${linea}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>${mk}</svg>
+      <div class="evo-x"><span>${fmtD(serie[0][0])}</span><span>${fmtD(serie[serie.length-1][0])}</span></div>
+      <div class="cv-leg"><span><i style="background:var(--accent)"></i>Precio (cierre semanal)</span><span><i style="background:var(--gain)"></i>Compra</span><span><i style="background:var(--loss)"></i>Venta</span><span><i style="background:var(--warn)"></i>Dividendo</span>${pos?'<span><i style="background:var(--muted)"></i>Tu precio medio</span>':''}</div></div>`;
+  }
+  const lista=movsT.slice().reverse().map(m=>{const vt=R.ventas.find(v=>v.mov.id===m.id); const {imp,det,res}=infoMov(m,vt);
+    return `<div class="mk-row"><div class="nm"><span class="full">${fmtD(m.fecha)} <span class="chip ${m.tipo}">${TIPO_CORTO[m.tipo]||m.tipo}</span></span><small style="white-space:normal">${det}</small>${m.nota?`<div class="fi-nota">${esc(m.nota)}</div>`:''}</div><div class="px"><div class="${cls(imp)}">${sgn(imp)}</div>${res?`<div class="d">${res}</div>`:''}</div><span></span></div>`;}).join('');
+  let el=document.getElementById('ficha'); if(!el){ el=document.createElement('div'); el.id='ficha'; document.body.appendChild(el); }
+  el.innerHTML=`<div class="fi-box" role="dialog" aria-modal="true" aria-labelledby="fiT">
+    <div class="fi-head"><div><h2 id="fiT">${esc(nombre(t)||t)}</h2><span class="muted">${esc(t)} · BME${pa&&pa.p>0?' · '+EUR40.format(pa.p)+' € ('+fmtD(pa.f)+')':''}</span></div><button class="btn ghost small" type="button" id="fiX">Cerrar</button></div>
+    <div class="cv-sum">
+      <div><span class="k">${pos?'Tienes':'Posición'}</span><span class="v">${pos?NUM.format(pos.qty)+' tít.':'cerrada'}</span><span class="s muted">${pos?'medio '+EUR4.format(pos.pm)+' €':''}</span></div>
+      <div><span class="k">Latente</span><span class="v ${cls(lat)}">${pos?sgn(lat):'—'}</span><span class="s ${cls(lat)}">${pos&&pos.coste?pct(lat/pos.coste):''}</span></div>
+      <div><span class="k">Total del valor</span><span class="v ${cls(real+divs+lat)}">${sgn(real+divs+lat)}</span><span class="s muted">ventas ${sgn(real)} · div. ${eur(divs)}</span></div>
+    </div>
+    ${graf}
+    <h3 class="rw-h">Tus operaciones y notas</h3>
+    <div class="mk-list">${lista}</div>
+    <p class="note">«Total del valor» suma lo ganado o perdido en ventas, los dividendos brutos y la plusvalía o minusvalía latente de lo que conservas. Los dividendos se marcan en la gráfica al precio de cierre de esa semana.</p>
+  </div>`;
+  document.body.classList.add('con-ficha'); el.hidden=false; el.scrollTop=0;
+  const cerrar=()=>{ el.hidden=true; document.body.classList.remove('con-ficha'); document.removeEventListener('keydown',esc_); };
+  const esc_=e=>{ if(e.key==='Escape') cerrar(); };
+  document.addEventListener('keydown',esc_);
+  $('fiX').onclick=cerrar; el.onclick=e=>{ if(e.target===el) cerrar(); };
+  setTimeout(()=>{ try{$('fiX').focus();}catch(e){} },30);
+}
+function panelCerrados(R){
+  const abiertos=new Set(R.posiciones.map(p=>p.valor));
+  const cer=[...new Set(state.movs.map(m=>m.valor))].filter(t=>!abiertos.has(t)).sort((a,b)=>(nombre(a)||a).localeCompare(nombre(b)||b,'es'));
+  if(!cer.length) return '';
+  return `<div class="panel"><h2>Valores que ya no tienes</h2><p class="note">Toca uno para ver su ficha: precio, tus compras y ventas, dividendos y resultado.</p><div class="actions">${cer.map(t=>`<button class="btn ghost small" type="button" data-ficha="${esc(t)}">${esc(nombre(t)||t)}</button>`).join('')}</div></div>`;
+}
+function wireFichas(root){ (root||document).querySelectorAll('[data-ficha]').forEach(b=>b.onclick=e=>{ e.preventDefault(); abrirFicha(b.dataset.ficha); }); }
+
+/* =====================================================================================
+   v2.4 · Importar movimientos desde Excel o CSV
+   ===================================================================================== */
+let impPrev=null;
+const nrm=s=>String(s??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+const IMP_COLS=[
+  ['isin',/\bisin\b/],
+  ['fecha',/^(fecha|date|dia|fecha (de )?(operacion|ejecucion|contratacion|valor|liquidacion))\b|^fecha/],
+  ['tipo',/^(tipo|operacion|tipo de operacion|movimiento|type|transaccion|clase)\b|tipo/],
+  ['titulos',/(titulos|cantidad|n[ºo.]? ?(de )?(acciones|titulos)|unidades|shares|quantity|qty|participaciones|^acciones$|^numero)/],
+  ['precio',/(precio|price|cotizacion|^cambio$)/],
+  ['gastos',/(comision|gastos|fee|corretaje|cargos|costes?)/],
+  ['retencion',/(retencion|withholding|impuesto|^tax)/],
+  ['bruto',/(bruto|importe|dividendo|amount|total|efectivo|valor efectivo)/],
+  ['nota',/(nota|comentario|observacion|descripcion|concepto|motivo)/],
+  ['cartera',/(cartera|broker|^cuenta)/],
+  ['valor',/(^valor$|ticker|simbolo|symbol|producto|empresa|nombre|instrumento|^accion$|^titulo$|security|^name|emisora|^activo)/]
+];
+function mapCabecera(row){
+  const m={}; row.forEach((h,i)=>{ const t=nrm(h); if(!t) return;
+    for(const [k,re] of IMP_COLS){ if(m[k]===undefined && re.test(t)){ m[k]=i; return; } } });
+  return m;
+}
+function numImp(v){ if(typeof v==='number') return v; let t=String(v??'').trim().replace(/[€%\s ]/g,''); if(!t) return NaN;
+  if(t.includes(',')&&t.includes('.')) t = t.lastIndexOf(',')>t.lastIndexOf('.') ? t.replace(/\./g,'').replace(',','.') : t.replace(/,/g,'');
+  else if(t.includes(',')) t=t.replace(',','.');
+  return Number(t); }
+function fechaImp(v){
+  if(v instanceof Date && !isNaN(v)) return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
+  if(typeof v==='number' && v>20000 && v<80000) return new Date(Date.UTC(1899,11,30)+Math.floor(v)*86400000).toISOString().slice(0,10);
+  const s=String(v??'').trim(); let m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/); if(m) return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+  m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/); if(m){ const y=m[3].length===2?'20'+m[3]:m[3]; return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); }
+  return '';
+}
+function tipoImp(s){ const t=nrm(s);
+  if(/compra|buy|purchase|adquisicion|suscripcion/.test(t)) return 'compra';
+  if(/venta|sell|sale|enajenacion|reembolso/.test(t)) return 'venta';
+  if(/scrip|liberad/.test(t)) return 'liberadas';
+  if(/derecho/.test(t)) return 'derechos';
+  if(/split|desdoblamiento|contrasplit/.test(t)) return 'split';
+  if(/dividend|cupon|reparto|prima/.test(t)) return 'dividendo';
+  return ''; }
+const IMP_GEN=new Set(['banco','grupo','group','sa','s','a','corporacion','compania','cia','de','del','la','el','los','las','y','e','internacional','international','holding','holdings','sociedad','inc','plc','nv','se','ag','ord','ordinarias','acciones','accion','espana','spain','sme','socimi']);
+const IMP_ALIAS={'industria de diseno textil':'ITX','international consolidated airlines':'IAG','red electrica':'RED','gas natural':'NTGY','arcelor':'MTS','laboratorios rovi':'ROVI','rovi':'ROVI','bbva':'BBVA','banco bilbao vizcaya':'BBVA','caixabank':'CABK','merlin':'MRL','colonial':'COL','acs':'ACS'};
+function impToks(x){ return nrm(x).replace(/[^a-z0-9 ]/g,' ').split(' ').filter(w=>w&&!IMP_GEN.has(w)); }
+function valorImp(s){
+  const raw=String(s??'').trim(); if(!raw) return {t:'',ok:false};
+  const up=raw.toUpperCase().replace(/^BME:/,'').trim();
+  if(NOMBRES[up]) return {t:up,ok:true};
+  const n=nrm(raw).replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  for(const [k,t] of Object.entries(IMP_ALIAS)) if(n===k||n.startsWith(k+' ')) return {t,ok:true};
+  const it=impToks(raw); if(!it.length) return {t:up.slice(0,12),ok:false};
+  const cands=[];
+  for(const [t,nm] of Object.entries(NOMBRES)){
+    const nt=impToks(nm); const sc=it.filter(w=>nt.includes(w)).length;
+    if(sc>=1 && (sc===it.length || it[0]===nt[0] || sc>=2)) cands.push({t,sc,extra:nt.length-sc});
+  }
+  cands.sort((a,b)=>b.sc-a.sc||a.extra-b.extra);
+  if(cands.length && (cands.length===1 || cands[0].sc>cands[1].sc || cands[0].extra<cands[1].extra)) return {t:cands[0].t,ok:true};
+  return {t:up.slice(0,12),ok:false};
+}
+function filasDeTexto(txt){
+  const l1=(txt.split(/\r?\n/).find(x=>x.trim())||'');
+  const sep=[';','\t',','].map(c=>[c,l1.split(c).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<txt.length;i++){const c=txt[i];
+    if(q){ if(c==='"'){ if(txt[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true; else if(c===sep){row.push(f);f='';} else if(c==='\n'){row.push(f);rows.push(row);row=[];f='';} else if(c!=='\r') f+=c; }
+  if(f!==''||row.length){row.push(f);rows.push(row);}
+  return rows;
+}
+async function leerArchivoImp(file){
+  const nombreF=file.name.toLowerCase();
+  if(/\.(xlsx|xlsm|xls|ods)$/.test(nombreF)){
+    const X=await cargarXLSX(); const wb=X.read(await file.arrayBuffer(),{type:'array',cellDates:true});
+    let mejor=null;
+    wb.SheetNames.forEach(n=>{ const rows=X.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''}); const r=analizarFilas(rows); if(r&&(!mejor||r.filas.length>mejor.filas.length)) mejor=Object.assign(r,{hoja:n}); });
+    return mejor;
+  }
+  return analizarFilas(filasDeTexto((await file.text()).replace(/^﻿/,'')));
+}
+function analizarFilas(rows){
+  let hi=-1, map=null;
+  for(let i=0;i<Math.min(rows.length,20);i++){ const m=mapCabecera(rows[i]||[]); if(m.fecha!==undefined && m.valor!==undefined && Object.keys(m).length>=3){ hi=i; map=m; break; } }
+  if(hi<0) return null;
+  const out=[];
+  for(let i=hi+1;i<rows.length;i++){
+    const r=rows[i]||[]; if(!r.some(c=>String(c??'').trim())) continue;
+    const g=k=>map[k]!==undefined?r[map[k]]:'';
+    const avisos=[], errores=[];
+    const fecha=fechaImp(g('fecha')); if(!fecha) errores.push('fecha no válida');
+    const vv=valorImp(g('valor')); if(!vv.t) errores.push('falta el valor'); else if(!vv.ok) avisos.push('«'+String(g('valor')).slice(0,30)+'» no está en el IBEX 35: se guarda como '+vv.t);
+    let tit=numImp(g('titulos')), pr=numImp(g('precio')), gas=Math.abs(numImp(g('gastos'))||0), bru=numImp(g('bruto')), ret=Math.abs(numImp(g('retencion'))||0);
+    let tipo=tipoImp(g('tipo'));
+    if(!tipo){ if(tit<0) tipo='venta'; else if(!(tit>0)&&bru>0) tipo='dividendo'; else if(tit>0) tipo='compra'; }
+    if(tit<0) tit=-tit;
+    const m={tipo,fecha,valor:vv.t,isin:String(g('isin')||'').trim().toUpperCase(),titulos:0,precio:0,gastos:0,bruto:0,retencion:0,nuevas:0,antiguas:0,ratio:0,nota:String(g('nota')||'').trim().slice(0,200)};
+    if(tipo==='compra'||tipo==='venta'){
+      if(!(pr>0) && tit>0 && Math.abs(bru)>0) pr=Math.abs(bru)/tit;
+      if(!(tit>0)) errores.push('faltan los títulos'); if(!(pr>0)) errores.push('falta el precio');
+      Object.assign(m,{titulos:tit,precio:pr,gastos:gas});
+    } else if(tipo==='dividendo'){
+      bru=Math.abs(bru); if(!(bru>0)) errores.push('falta el importe bruto');
+      if(map.retencion===undefined||String(g('retencion')).trim()===''){ ret=Math.round(bru*19)/100; avisos.push('retención no indicada: se supone el 19 %'); }
+      Object.assign(m,{bruto:bru,retencion:ret});
+    } else if(tipo==='liberadas'){ if(!(tit>0)) errores.push('faltan los títulos'); m.titulos=tit; }
+    else if(tipo==='derechos'){ bru=Math.abs(bru); if(!(bru>0)) errores.push('falta el importe'); Object.assign(m,{bruto:bru,gastos:gas,retencion:ret}); }
+    else if(tipo==='split'){ errores.push('los splits se registran a mano (tipo «Otras»)'); }
+    else errores.push('tipo de operación no reconocido');
+    const dup=!errores.length && store.movs.some(x=>x.fecha===m.fecha&&x.tipo===m.tipo&&x.valor===m.valor&&Math.abs((x.titulos||0)-m.titulos)<1e-6&&Math.abs((x.precio||0)-m.precio)<1e-6&&Math.abs((x.bruto||0)-m.bruto)<0.005);
+    out.push({n:i+1,m,avisos,errores,dup});
+  }
+  return {filas:out,cols:Object.keys(map)};
+}
+function panelImportar(){
+  const p=impPrev;
+  let cuerpo='';
+  if(p&&p.error) cuerpo=`<p class="err-msg">${esc(p.error)}</p>`;
+  else if(p){
+    const ok=p.filas.filter(f=>!f.errores.length&&!f.dup), conAv=ok.filter(f=>f.avisos.length), err=p.filas.filter(f=>f.errores.length), dup=p.filas.filter(f=>f.dup);
+    cuerpo=`<p class="note">Archivo <b>${esc(p.archivo)}</b>${p.hoja?' · hoja «'+esc(p.hoja)+'»':''}. Columnas reconocidas: ${p.cols.map(esc).join(', ')}.</p>
+      <div class="cv-sum"><div><span class="k">Se importarán</span><span class="v pos">${ok.length}</span><span class="s muted">${conAv.length?conAv.length+' con aviso':'sin avisos'}</span></div><div><span class="k">Ya existían</span><span class="v">${dup.length}</span><span class="s muted">se omiten</span></div><div><span class="k">Con error</span><span class="v ${err.length?'neg':''}">${err.length}</span><span class="s muted">se omiten</span></div></div>
+      <div class="mk-list imp-list">${p.filas.slice(0,200).map(f=>{const m=f.m;const det=m.tipo==='dividendo'||m.tipo==='derechos'?`bruto ${EUR.format(m.bruto)} · ret. ${EUR.format(m.retencion)}`:m.titulos?`${NUM0.format(m.titulos)} × ${EUR40.format(m.precio)} € · gastos ${EUR.format(m.gastos)}`:'';
+        return `<div class="mk-row"><div class="nm"><span class="full">${m.fecha?fmtD(m.fecha):'—'} · ${esc(m.valor||'?')} <span class="chip ${m.tipo||'err'}">${esc(TIPO_CORTO[m.tipo]||'¿?')}</span></span><small style="white-space:normal">fila ${f.n} · ${det}${f.errores.length?' · <span class="neg">'+esc(f.errores.join('; '))+'</span>':''}${f.avisos.length?' · <span class="chip warn">aviso</span> '+esc(f.avisos.join('; ')):''}</small></div><div class="px">${f.errores.length?'<span class="chip err">error</span>':f.dup?'<span class="chip venta">ya existe</span>':'<span class="chip gan">ok</span>'}</div><span></span></div>`;}).join('')}</div>
+      ${ok.length?`<div class="mov imp-dest">
+        <label>Añadir a la cartera<select id="impCart">${store.carteras.map(c=>`<option value="${esc(c.id)}" ${c.id===(store.activa!=='todas'?store.activa:store.carteras[0].id)?'selected':''}>${esc(c.nombre)}</option>`).join('')}<option value="__nueva">Nueva cartera…</option></select></label>
+        <label id="impNomL" hidden>Nombre de la nueva cartera<input id="impNom" maxlength="40" placeholder="Por ejemplo: Cartera de Ana"></label>
+        <label id="impFisL" hidden>Fiscalidad<select id="impFis"><option value="conjunto">Mismo titular · fiscal conjunto</option><option value="independiente">Independiente · fiscal separado</option></select></label>
+      </div>
+      <div class="actions"><button class="btn" type="button" id="impOk">Importar ${ok.length} movimiento${ok.length===1?'':'s'}</button><button class="btn ghost" type="button" id="impNo">Cancelar</button></div>
+      <p class="err-msg" id="impErr" hidden></p>`:'<div class="actions"><button class="btn ghost" type="button" id="impNo">Cerrar</button></div>'}`;
+  }
+  return `<div class="panel" id="pImp">
+    <h2>Importar movimientos (Excel o CSV)</h2>
+    <p class="note">Carga el Excel o CSV que exporta tu bróker, o uno tuyo. La app busca las columnas por su nombre (fecha, tipo de operación, valor o empresa, títulos, precio, comisiones, importe bruto, retención, nota) y te enseña una vista previa antes de guardar nada. El CSV que descarga esta app también se puede importar.</p>
+    <label>Archivo (.xlsx, .xls o .csv)<input type="file" id="impFile" accept=".xlsx,.xls,.xlsm,.ods,.csv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></label>
+    <p class="note" id="impMsg" aria-live="polite"></p>
+    ${cuerpo}
+  </div>`;
+}
+function wireImportar(){
+  const fi=$('impFile'); if(!fi) return;
+  fi.onchange=async()=>{ const f=fi.files[0]; if(!f) return; const msg=$('impMsg'); msg.textContent='Leyendo el archivo…';
+    try{ const r=await leerArchivoImp(f); impPrev = r&&r.filas.length ? Object.assign(r,{archivo:f.name}) : {error:'No he encontrado una fila de cabecera con al menos la fecha y el valor. Revisa que la primera fila del listado tenga los nombres de las columnas.'}; }
+    catch(e){ impPrev={error:'No se pudo leer el archivo: '+((e&&e.message)||'formato no reconocido')+'.'}; }
+    render(); const p=$('pImp'); if(p) p.scrollIntoView({block:'start'}); };
+  const sel=$('impCart'); if(sel) sel.onchange=()=>{ const n=sel.value==='__nueva'; $('impNomL').hidden=!n; $('impFisL').hidden=!n; };
+  const no=$('impNo'); if(no) no.onclick=()=>{ impPrev=null; render(); };
+  const ok=$('impOk'); if(ok) ok.onclick=()=>{
+    const err=$('impErr'); let dest=sel.value;
+    if(dest==='__nueva'){ const n=$('impNom').value.trim().slice(0,40); if(!n){err.textContent='Escribe el nombre de la nueva cartera.';err.hidden=false;return;}
+      if(store.carteras.some(c=>c.nombre.toLowerCase()===n.toLowerCase())){err.textContent='Ya tienes una cartera con ese nombre.';err.hidden=false;return;}
+      if(demo) empezarSilencioso();
+      dest='c'+uid(); store.carteras.push({id:dest,nombre:n,fiscal:$('impFis').value==='independiente'?'independiente':'conjunto'}); }
+    else if(demo){ empezarSilencioso(); dest=store.carteras[0].id; }
+    const filas=impPrev.filas.filter(f=>!f.errores.length&&!f.dup);
+    let seq=Math.max(0,...store.movs.map(x=>x.seq||0));
+    filas.forEach(f=>store.movs.push(Object.assign({id:uid(),seq:++seq,cartera:dest},f.m)));
+    store.activa=dest; impPrev=null; guardar(); tab='movimientos'; render(); window.scrollTo({top:0});
+    toast(filas.length+' movimientos importados'); };
+}
+
+/* =====================================================================================
+   v2.4 · Resumen anual en PDF (jsPDF, se carga solo al pulsar el botón)
+   ===================================================================================== */
+const JSPDF_URL='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+let jspdfP=null;
+function cargarJsPDF(){
+  if(window.jspdf&&window.jspdf.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
+  if(!jspdfP) jspdfP=new Promise((res,rej)=>{const s=document.createElement('script');s.src=JSPDF_URL;s.async=true;
+    s.onload=()=>window.jspdf&&window.jspdf.jsPDF?res(window.jspdf.jsPDF):rej(new Error('No se pudo preparar el generador de PDF.'));
+    s.onerror=()=>{jspdfP=null;s.remove();rej(new Error('No se pudo cargar el generador de PDF. Necesitas conexión a internet.'));};
+    document.head.appendChild(s);});
+  return jspdfP;
+}
+function construirPDF(JsPDF,anio){
+  const _oc=oculto; oculto=false;
+  try{
+    const hoy=todayStr(), cierre=anio<hoy.slice(0,4)?anio+'-12-31':hoy;
+    const movsF=movsFiscales(), R=calcular(movsF,store.precios,hoy), a=R.anios[anio]||{gan:0,per:0,noComp:0,saldoGP:0,divBruto:0,divRet:0,derRet:0,base:0,cuota:0,resultado:0,ventas:[],divs:[],arrUsado:0,arrastreSiguiente:0};
+    const doc=new JsPDF({unit:'mm',format:'a4'}); const W=210, M=16; let y=18;
+    const txt=s=>String(s).replace(/[  ]/g,' ').replace(/−/g,'-');
+    const E=v=>txt(EUR.format(Math.abs(v)<0.005?0:v)), S=v=>(v>0.005?'+':'')+E(v);
+    const nueva=()=>{ doc.addPage(); y=18; };
+    const sitio=h=>{ if(y+h>282) nueva(); };
+    let sec=0; const titulo=t=>{ t=(++sec)+'. '+t; sitio(14); doc.setFont('helvetica','bold'); doc.setFontSize(12.5); doc.setTextColor(29,92,122); doc.text(txt(t),M,y); y+=2.5; doc.setDrawColor(213,219,223); doc.line(M,y,W-M,y); y+=6; doc.setTextColor(22,35,43); };
+    const kv=(k,v,neg)=>{ sitio(7); doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(91,106,115); doc.text(txt(k),M,y); doc.setTextColor(neg===true?179:neg===false?23:22, neg===true?38:neg===false?119:35, neg===true?30:neg===false?74:43); doc.setFont('helvetica','bold'); doc.text(txt(v),W-M,y,{align:'right'}); doc.setTextColor(22,35,43); y+=6.2; };
+    const tabla=(cab,filas,anchos,der)=>{ const x0=M; const fila=(r,bold)=>{ sitio(6.5); doc.setFont('helvetica',bold?'bold':'normal'); doc.setFontSize(8.6); let x=x0; r.forEach((c,i)=>{ const w=anchos[i]; const s=doc.splitTextToSize(txt(c),w-1.5)[0]||''; if(der.includes(i)) doc.text(s,x+w-1,y,{align:'right'}); else doc.text(s,x,y); x+=w; }); y+=5.4; };
+      doc.setTextColor(91,106,115); fila(cab,true); doc.setTextColor(22,35,43); doc.setDrawColor(213,219,223); doc.line(M,y-3.8,W-M,y-3.8); filas.forEach(r=>fila(r,false)); y+=2; };
+    // Cabecera
+    doc.setFillColor(16,32,48); doc.rect(0,0,W,30,'F'); doc.setTextColor(214,170,74); doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.text(txt('Resumen anual '+anio),M,15);
+    doc.setFontSize(9.5); doc.setFont('helvetica','normal'); doc.setTextColor(230,230,230); doc.text(txt('Cartera de Inversiones · '+grupoFiscal().nombre+' · generado el '+fmtD(hoy)),M,23);
+    y=40; doc.setTextColor(22,35,43);
+    // 1. Resultado fiscal
+    titulo('Resultado del ejercicio '+anio+(anio===hoy.slice(0,4)?' (en curso, a '+fmtD(hoy)+')':''));
+    kv('Ganancias por venta de acciones',E(a.gan||0),(a.gan||0)>0.005?false:undefined);
+    kv('Pérdidas computables',E(a.per||0),(a.per||0)<-0.005?true:undefined);
+    if((a.noComp||0)>0.005) kv('Pérdidas no computables (regla de los dos meses)',E(a.noComp));
+    kv('Saldo de ganancias y pérdidas',S(a.saldoGP||0),(a.saldoGP||0)<-0.005?true:(a.saldoGP||0)>0.005?false:undefined);
+    kv('Dividendos brutos',E(a.divBruto||0)); kv('Retenciones soportadas',E((a.divRet||0)+(a.derRet||0)));
+    if((a.arrUsado||0)>0.005) kv('Pérdidas de años anteriores compensadas',E(a.arrUsado));
+    kv('Base del ahorro estimada',E(a.base||0)); kv('Cuota estimada (escala del ahorro 19-30 %)',E(a.cuota||0));
+    kv((a.resultado||0)>=0?'A pagar por estas inversiones (aprox.)':'A devolver por estas inversiones (aprox.)',E(Math.abs(a.resultado||0)),(a.resultado||0)>=0);
+    if((a.arrastreSiguiente||0)>0.005) kv('Pérdidas pendientes para años siguientes',E(a.arrastreSiguiente));
+    y+=3;
+    // 2. Cartera al cierre
+    const pr={}; [...new Set(movsF.map(m=>m.valor))].forEach(t=>{ const c=cierre===hoy&&store.precios[t]?store.precios[t].p:cierreValor(t,cierre); if(c>0) pr[t]={p:c,f:cierre}; });
+    const Rc=calcular(movsF.filter(m=>m.fecha<=cierre),pr,cierre);
+    titulo('Cartera '+(cierre===hoy?'a '+fmtD(hoy):'a 31/12/'+anio));
+    if(Rc.posiciones.length){ tabla(['Valor','Títulos','Precio medio','Coste','Precio','Valor mercado','Latente'],Rc.posiciones.map(p=>[(nombre(p.valor)||p.valor),NUM0.format(p.qty),txt(EUR40.format(p.pm)),E(p.coste),isFinite(p.precio)?txt(EUR40.format(p.precio)):'-',isFinite(p.mercado)?E(p.mercado):'-',isFinite(p.latente)?S(p.latente):'-']),[48,16,22,24,18,28,22],[1,2,3,4,5,6]);
+      kv('Total valor de mercado',E(Rc.mercado)); kv('Plusvalía o minusvalía latente',S(Rc.latente),Rc.latente<-0.005?true:Rc.latente>0.005?false:undefined); }
+    else { doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.text('Sin posiciones abiertas.',M,y); y+=8; }
+    // 3. Evolución del año (gráfica)
+    const ser=serieEvolucion().filter(p=>p.f>=anio+'-01-01'&&p.f<=anio+'-12-31');
+    if(ser.length>1){ titulo('Evolución en '+anio+' (valor de mercado y coste)'); sitio(58); const gx=M, gw=W-2*M, gh=48, gy=y;
+      const t0=parseD(ser[0].f), t1=parseD(ser[ser.length-1].f), dt=Math.max(1,t1-t0); const vs=ser.flatMap(p=>[p.v,p.c]); let mn=Math.min(...vs), mx=Math.max(...vs); const pd=(mx-mn)*0.1||1; mn=Math.min(...vs)>=0?Math.max(0,mn-pd):mn-pd; mx+=pd;
+      const X=f=>gx+(parseD(f)-t0)/dt*gw, Y=v=>gy+gh-(v-mn)/(mx-mn)*gh;
+      doc.setDrawColor(230,233,235); [0,0.5,1].forEach(k=>doc.line(gx,gy+k*gh,gx+gw,gy+k*gh));
+      doc.setFontSize(7.5); doc.setTextColor(91,106,115); doc.text(E(mx),gx,gy-1.2); doc.text(E(mn),gx,gy+gh+3.5); doc.text(fmtD(ser[0].f),gx,gy+gh+7.5); doc.text(fmtD(ser[ser.length-1].f),gx+gw,gy+gh+7.5,{align:'right'});
+      doc.setLineWidth(0.35); doc.setDrawColor(91,106,115); doc.setLineDashPattern([1.2,1],0); for(let i=1;i<ser.length;i++) doc.line(X(ser[i-1].f),Y(ser[i-1].c),X(ser[i].f),Y(ser[i].c));
+      doc.setLineDashPattern([],0); doc.setLineWidth(0.6); doc.setDrawColor(29,92,122); for(let i=1;i<ser.length;i++) doc.line(X(ser[i-1].f),Y(ser[i-1].v),X(ser[i].f),Y(ser[i].v));
+      doc.setLineWidth(0.2); y=gy+gh+13; doc.setTextColor(22,35,43); }
+    // 4. Comparativa IBEX (desde el inicio)
+    const c=comparativa(calcular(state.movs,store.precios,hoy),hoy);
+    if(c&&!c.falta){ titulo('Comparación con el IBEX 35 (desde '+fmtD(c.desde)+', vista actual)'); kv('Tu cartera (sin dividendos)',S(c.tu)+'  ('+txt(PCT.format(c.pTu))+')',c.tu<0); kv('IBEX 35 con los mismos euros y fechas',S(c.idx)+'  ('+txt(PCT.format(c.pIdx))+')',c.idx<0); kv('Diferencia',S(c.dif),c.dif<0); }
+    // 5. Ventas y dividendos del año
+    titulo('Ventas de '+anio);
+    if(a.ventas.length) tabla(['Fecha','Valor','Títulos','Transmisión','Adquisición','Resultado','No comp.'],a.ventas.map(v=>[fmtD(v.fecha),nombre(v.valor)||v.valor,NUM0.format(v.qty),E(v.transm),E(v.adq),S(v.gp),v.noComputable>0.005?E(v.noComputable):'-']),[20,46,15,27,27,24,19],[2,3,4,5,6]);
+    else { doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.text('Sin ventas.',M,y); y+=8; }
+    titulo('Dividendos de '+anio);
+    if(a.divs.length) tabla(['Fecha','Valor','Bruto','Retención','Neto'],a.divs.map(d=>[fmtD(d.fecha),nombre(d.valor)||d.valor,E(d.bruto),E(d.ret),E(d.neto)]),[22,70,30,30,26],[2,3,4]);
+    else { doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.text('Sin dividendos.',M,y); y+=8; }
+    sitio(22); y+=2; doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(91,106,115);
+    doc.splitTextToSize(txt('Estimación orientativa calculada con los movimientos registrados en la app (criterio FIFO, comisiones incluidas, regla de los dos meses del art. 33.5.f LIRPF y escala del ahorro de territorio común vigente desde 2025). No incluye intereses de cuentas ni otras rentas. Contrástala con el informe fiscal de tu bróker y tus datos fiscales de la AEAT. No es asesoramiento fiscal.'),W-2*M).forEach(l=>{ sitio(5); doc.text(l,M,y); y+=4; });
+    const np=doc.getNumberOfPages(); for(let i=1;i<=np;i++){ doc.setPage(i); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(140,150,156); doc.text(txt('Cartera de Inversiones · Resumen '+anio+' · página '+i+' de '+np),W/2,292,{align:'center'}); }
+    return doc;
+  } finally { oculto=_oc; }
+}
+function nombrePDF(anio){ return 'resumen-'+anio+'-'+(grupoFiscal().nombre.normalize('NFD').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase().slice(0,30)||'cartera')+'.pdf'; }
+
 const IDXKEY='jasz-cartera-indice', HPKEY='jasz-cartera-hprecios';
 let idxEstado='', reintentoT=null;
 function reintentarPronto(){ if(reintentoT) return; reintentoT=setTimeout(()=>{ reintentoT=null; actualizarPrecios(true); }, 60000); }
@@ -1132,6 +1486,19 @@ function textoSinIndice(){
   if(idxEstado==='cargando'||(!idxEstado&&!ajustes.ultimaAct)) return 'Google todavía está cargando el histórico del IBEX en tu hoja. La app lo volverá a leer sola en un minuto; no tienes que hacer nada.';
   if(!idxEstado) return 'Cargando el histórico del IBEX desde tu hoja…';
   return 'Tu hoja de precios aún no tiene el histórico del índice. En tu hoja de Google, escribe en la celda <b>E1</b> <code>=GOOGLEFINANCE("BME:LYXIB";"close";DATE(2024;1;1);TODAY();"DAILY")</code>, en <b>G1</b> <code>LYXIB</code> y en <b>H1</b> <code>=GOOGLEFINANCE("BME:LYXIB";"price")</code>. La app lo leerá en la siguiente actualización de precios.';
+}
+async function exportarPDF(anio){
+  const msg=$('xlsMsg'); if(!msg) return;
+  if(demo||!movsFiscales().length){msg.textContent='Primero registra tus movimientos.';return;}
+  msg.textContent='Generando el PDF…';
+  try{
+    const J=await cargarJsPDF(); const doc=construirPDF(J,anio); const fn=nombrePDF(anio);
+    const blob=doc.output('blob'); const file=new File([blob],fn,{type:'application/pdf'});
+    let comp=false; try{comp=!!(navigator.canShare&&navigator.canShare({files:[file]}));}catch(e){}
+    if(comp){ try{ await navigator.share({files:[file],title:'Resumen '+anio}); msg.textContent='PDF listo: '+fn; return; }catch(e){ if(e&&e.name==='AbortError'){msg.textContent='';return;} } }
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=fn; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000);
+    msg.textContent='PDF descargado: '+fn; toast('PDF descargado');
+  }catch(e){ msg.textContent=(e&&e.message)||'No se pudo generar el PDF.'; }
 }
 /* ---------- Estado y almacenamiento ---------- */
 let state = {movs:[],precios:{}};
@@ -1461,10 +1828,10 @@ function render(){
   $('valores').innerHTML = vals.map(v=>`<option value="${esc(v)}"></option>`).join('');
   if(tab==='resumen') renderResumen(R,hoy);
   if(tab==='movimientos') renderMovs(R);
-  if(tab==='cartera'){ renderCartera(R,hoy); wireAnalisis(); }
+  if(tab==='cartera'){ renderCartera(R,hoy); wireAnalisis(); wireFichas($('v-cartera')); }
   if(tab==='mercado') renderMercado(R,hoy);
   if(tab==='fiscal') renderFiscal(calcular(movsFiscales(),store.precios,hoy),hoy);
-  if(tab==='copia'){ renderCopia(); wireCarteras(); }
+  if(tab==='copia'){ renderCopia(); wireCarteras(); wireImportar(); }
 }
 
 function renderBanner(){
@@ -1640,7 +2007,7 @@ function renderMovs(R){
       `}
       ${store.carteras.length>1?`<label>Cartera<select id="fCart">${store.carteras.map(c=>`<option value="${esc(c.id)}" ${c.id===cartDefault(editando)?'selected':''}>${esc(c.nombre)}</option>`).join('')}</select></label>`:''}
       <label>ISIN (opcional)<input id="fIsin" autocomplete="off" placeholder="ES0113900J37" value="${esc(m.isin||'')}"></label>
-      <label>Nota (opcional)<input id="fNota" autocomplete="off" value="${esc(m.nota||'')}"></label>
+      <label>Nota o motivo (opcional)<input id="fNota" autocomplete="off" placeholder="Por qué compras o vendes, bróker…" value="${esc(m.nota||'')}"></label>
       <div class="preview" id="fPrev"></div>
       <div class="err-msg" id="fErr" hidden></div>
       <div class="actions" style="grid-column:1/-1">
@@ -1771,12 +2138,13 @@ function renderCartera(R,hoy){
       <div class="r"><div>${isFinite(p.mercado)?eur(p.mercado):'—'}</div><div class="${cls(p.latente)}">${isFinite(p.latente)?sgn(p.latente):'sin precio'}</div><div class="${cls(p.latente)}" style="font-size:.85rem">${isFinite(p.latente)?pct(p.latente/p.coste):''}</div></div>
       <label class="full" style="flex-direction:row;align-items:center;justify-content:space-between;gap:10px;margin-top:4px"><span>Precio actual${p.fechaPrecio?' · '+fmtD(p.fechaPrecio):''}</span><input class="numin priceIn" inputmode="decimal" id="prm-${esc(p.valor)}" data-pr="${esc(p.valor)}" value="${isFinite(p.precio)?String(p.precio).replace('.',','):''}" placeholder="—"></label>
       ${p.divVal?`<div class="full meta">Dividendos cobrados: ${eur(p.divVal)} brutos</div>`:''}
+      <div class="full actions" style="justify-content:flex-end"><button class="btn ghost small" type="button" data-ficha="${esc(p.valor)}">Ver ficha</button></div>
     </div>`).join('') : `<div class="panel empty">No tienes posiciones abiertas.</div>`}
     ${P.length?`<div class="card"><div><b>Total</b><div class="meta">coste ${eur(tot.coste)}</div></div><div class="r"><div>${eur(tot.merc)}</div><div class="${cls(tot.lat)}">${sgn(tot.lat)}</div></div></div>`:''}</div>
   <div class="tbl desk"><table>
     <thead><tr><th>Valor</th><th class="n">Títulos</th><th class="n">Precio medio</th><th class="n">Coste</th><th class="n">Precio actual</th><th>Fecha precio</th><th class="n">Valor mercado</th><th class="n">Latente €</th><th class="n">Latente %</th><th class="n">Dividendos</th><th class="n">Tiempo medio</th></tr></thead>
     <tbody>${P.length? P.map(p=>`<tr>
-      <td><b>${esc(p.valor)}</b>${nombre(p.valor)?`<div style="font-size:.8rem;white-space:normal">${esc(nombre(p.valor))}</div>`:''}<span class="muted" style="font-size:.78rem">${p.lotes} lote${p.lotes>1?'s':''}</span>${varHoy(p.valor)}</td>
+      <td><b>${esc(p.valor)}</b>${nombre(p.valor)?`<div style="font-size:.8rem;white-space:normal">${esc(nombre(p.valor))}</div>`:''}<span class="muted" style="font-size:.78rem">${p.lotes} lote${p.lotes>1?'s':''}</span> <button class="btn ghost small" type="button" data-ficha="${esc(p.valor)}">Ficha</button>${varHoy(p.valor)}</td>
       <td class="n">${NUM.format(p.qty)}</td><td class="n">${EUR4.format(p.pm)}</td><td class="n">${eur(p.coste)}</td>
       <td class="n"><input class="numin priceIn" inputmode="decimal" id="pr-${esc(p.valor)}" data-pr="${esc(p.valor)}" value="${isFinite(p.precio)?String(p.precio).replace('.',','):''}" placeholder="—" aria-label="Precio actual de ${esc(p.valor)}"></td>
       <td class="muted">${p.fechaPrecio?fmtD(p.fechaPrecio)+(state.precios[p.valor]&&state.precios[p.valor].h?' '+state.precios[p.valor].h:''):'sin precio'}</td>
@@ -1789,6 +2157,7 @@ function renderCartera(R,hoy){
   </table></div>
   <p class="note">"Dividendos" es lo cobrado en bruto por cada valor desde el inicio. "Tiempo medio" es la antigüedad media de los títulos que conservas, ponderada por coste.</p>
   ${panelAnalisis(R)}
+  ${panelCerrados(R)}
   </div>`;
   const ba=$('bAct'); if(ba) ba.onclick=()=>actualizarPrecios(false);
   const bf=$('bConf'); if(bf) bf.onclick=()=>{tab='copia';render();};
@@ -1906,20 +2275,21 @@ function wireCalendario(){
 function renderFiscal(R,hoy){
   const el=$('v-fiscal');
   const anios=Object.keys(R.anios).sort().reverse();
-  if(!anios.length){el.innerHTML=`<div style="display:flex;flex-direction:column;gap:16px">${infoFiscal()}${panelSimulador(R,hoy)}<div class="panel empty">Todavía no hay ventas ni dividendos: no hay nada que declarar por ahora.</div></div>`;wireSimulador(R,hoy);return;}
+  if(!anios.length){el.innerHTML=`<div style="display:flex;flex-direction:column;gap:16px">${infoFiscal()}${panelPlanificador(R,hoy)}${panelSimulador(R,hoy)}<div class="panel empty">Todavía no hay ventas ni dividendos: no hay nada que declarar por ahora.</div></div>`;wireSimulador(R,hoy);return;}
   if(!anioFiscal||!R.anios[anioFiscal]) anioFiscal=anios[0];
   const a=R.anios[anioFiscal];
   const enCurso = anioFiscal===hoy.slice(0,4);
   el.innerHTML = `
   <div style="display:flex;flex-direction:column;gap:16px">
   ${infoFiscal()}
+  ${panelPlanificador(R,hoy)}
   ${panelSimulador(R,hoy)}
   <div class="toolbar"><h2>Ejercicio ${anioFiscal}${enCurso?' <span class="chip warn">en curso</span>':''}</h2>
     <label>Año fiscal<select id="selA">${anios.map(x=>`<option ${x===anioFiscal?'selected':''}>${x}</option>`).join('')}</select></label></div>
   <div class="panel">
     <div class="cv-head"><h2>Informe fiscal en Excel</h2><span class="chip compra">Todos los años</span></div>
     <p class="note">Un archivo con: <b>resumen fiscal por año</b>, <b>ventas para la renta</b> (valor de transmisión y de adquisición de cada venta), <b>dividendos</b>, <b>cartera actual</b>, <b>todos los movimientos</b> y <b>una pestaña por cada acción</b> con su historial, títulos tras cada operación y resultado.</p>
-    <div class="actions">${botonesExcel()}</div>
+    <div class="actions">${botonesExcel()}<button class="btn ghost" type="button" id="pdfBtn">Resumen ${anioFiscal} en PDF</button></div>
     <p class="note" id="xlsMsg" aria-live="polite"></p>
   </div>
   <div class="grid2">
@@ -1991,7 +2361,8 @@ function renderFiscal(R,hoy){
   </details>
   </div>`;
   $('selA').onchange=e=>{anioFiscal=e.target.value;render();};
-  wireCopiar(el);
+  wireCopiar(el); wireFolds();
+  const pb=$('pdfBtn'); if(pb) pb.onclick=()=>exportarPDF(anioFiscal);
   wireSimulador(R,hoy);
   const xd=$('xlsDl'); if(xd) xd.onclick=()=>exportarExcel('descargar');
   const xs=$('xlsSh'); if(xs) xs.onclick=()=>exportarExcel('compartir');
@@ -2133,7 +2504,7 @@ function renderCopia(){
   const el=$('v-copia');
   const ult = ajustes.ultimaCopia? new Date(ajustes.ultimaCopia).toLocaleString('es-ES',{dateStyle:'medium',timeStyle:'short'}) : 'nunca';
   let puedeCompartir=false; try{ puedeCompartir = !!(navigator.share && navigator.canShare && window.File && navigator.canShare({files:[new File(['x'],'a.txt',{type:'text/plain'})]})); }catch(e){}
-  el.innerHTML=panelCarteras()+`
+  el.innerHTML=panelCarteras()+panelImportar()+`
   <div style="display:flex;flex-direction:column;gap:16px">
   <div class="panel">
     <h2>Precios automáticos</h2>
