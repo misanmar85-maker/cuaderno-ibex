@@ -188,6 +188,10 @@ nav.tabs svg{width:20px;height:20px;display:none}
 .cart-bar{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;padding:8px 12px;background:var(--surface);border:1px solid var(--line);border-radius:6px}
 .cart-bar .cb-l{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
 .cart-bar select{width:auto;flex:1 1 200px;max-width:420px}
+.cb-seg{overflow-x:auto;flex-wrap:nowrap;max-width:100%;-webkit-overflow-scrolling:touch}
+.cb-seg button{white-space:nowrap}
+.cb-seg small{font-weight:500;opacity:.8}
+.cart-bar .cb-n{font-size:.75rem;color:var(--muted);flex:1 1 100%}
 .cart-bar .cb-n{flex:1 1 auto}
 .cart-list{display:flex;flex-direction:column;gap:8px}
 .cart-item{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.5fr) auto auto;gap:8px;align-items:center}
@@ -356,7 +360,7 @@ body.bloqueado .wrap{display:none!important}
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '2.2 · 20/10/2026 · JASZ';
+const APP_VERSION = '2.3 · 21/10/2026 · JASZ';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
 const NOMBRES = Object.fromEntries(IBEX35);
 const nombre = t => NOMBRES[t] || '';
@@ -1168,8 +1172,10 @@ function renderCartBar(){
   const el=$('cartBar'); if(!el) return;
   if(store.carteras.length<2){ el.innerHTML=''; el.hidden=true; return; }
   el.hidden=false;
-  el.innerHTML=`<span class="cb-l">Cartera</span><select id="selCart" aria-label="Cartera que estás viendo">${store.carteras.map(c=>`<option value="${esc(c.id)}" ${c.id===store.activa?'selected':''}>${esc(c.nombre)}${c.fiscal==='independiente'?' · independiente':''}</option>`).join('')}<option value="todas" ${store.activa==='todas'?'selected':''}>Todas las carteras</option></select>`;
-  const s=$('selCart'); if(s) s.onchange=()=>{store.activa=s.value;editId=null;borrarId=null;if(!demo)guardar();render();};
+  const ops=[['todas','Todas']].concat(store.carteras.map(c=>[c.id,c.nombre]));
+  el.innerHTML=`<span class="cb-l">Ver</span><div class="seg cb-seg" role="group" aria-label="Cartera que estás viendo">${ops.map(([id,n])=>`<button type="button" data-cart="${esc(id)}" aria-pressed="${store.activa===id}">${esc(n)}${id!=='todas'&&(carteraDe(id)||{}).fiscal==='independiente'?' <small>· indep.</small>':''}</button>`).join('')}</div>
+    <span class="cb-n">${store.activa==='todas'?'Viendo todas las carteras juntas':'Viendo solo «'+esc((carteraDe(store.activa)||{}).nombre||'')+'»'} · Fiscal: ${esc(grupoFiscal().nombre)}</span>`;
+  el.querySelectorAll('[data-cart]').forEach(b=>b.onclick=()=>{store.activa=b.dataset.cart;editId=null;borrarId=null;if(!demo)guardar();render();});
 }
 function infoFiscal(){
   if(store.carteras.length<2) return '';
@@ -1177,7 +1183,7 @@ function infoFiscal(){
   return `<div class="banner"><p>Cálculo fiscal de: <b>${esc(g.nombre)}</b>${g.indep?' (cartera independiente, calculada por separado)':g.ids.length>1?' — carteras del mismo titular, calculadas juntas (FIFO y regla de los dos meses sobre todas)':''}.${indep.length?' Las carteras independientes ('+indep.map(c=>'«'+esc(c.nombre)+'»').join(', ')+') se calculan aparte: elígelas en el selector de cartera.':''}</p></div>`;
 }
 function panelCarteras(){
-  if(demo) return `<div class="panel" id="carterasPanel" style="margin-bottom:16px"><h2>Carteras</h2><p class="note">Pulsa «Empezar con mi cartera» en el aviso de arriba para crear y nombrar tus carteras.</p></div>`;
+  if(demo) return `<div class="panel" id="carterasPanel" style="margin-bottom:16px"><h2>Carteras</h2><p class="note">Ahora ves datos de ejemplo. Pulsa <b>Empezar con mi cartera</b> (o restaura tu copia) y después podrás crear y nombrar tus carteras aquí.</p><div class="actions"><button class="btn" type="button" data-empezar="1">Empezar con mi cartera</button></div></div>`;
   const cuenta=id=>store.movs.filter(m=>m.cartera===id).length;
   return `<div class="panel" id="carterasPanel" style="margin-bottom:16px">
     <h2>Carteras</h2>
@@ -1190,15 +1196,15 @@ function panelCarteras(){
     </div>${borrarCart===c.id?`<div class="confirm"><span>Se eliminará «${esc(c.nombre)}» y sus ${cuenta(c.id)} movimientos. No se puede deshacer.</span><button class="btn danger small" type="button" id="cdSi">Eliminar cartera</button><button class="btn ghost small" type="button" id="cdNo">Cancelar</button></div>`:''}`).join('')}</div>
     <p class="note">Para cambiar el nombre, edítalo y pulsa fuera del campo.</p>
     <h3>Nueva cartera</h3>
-    <div class="cart-new">
+    <form class="cart-new" id="ncForm" autocomplete="off">
       <label>Nombre<input id="ncNom" maxlength="40" placeholder="Por ejemplo: ING o Cartera de Ana" autocomplete="off"></label>
       <fieldset class="nc-q"><legend>¿Es del mismo titular que tus otras carteras?</legend>
         <label class="rad"><input type="radio" name="ncF" id="ncF1" value="conjunto" checked> Sí, es mía: calcular la renta junto con las demás</label>
         <label class="rad"><input type="radio" name="ncF" id="ncF2" value="independiente"> No, es independiente: calcular la renta por separado</label>
       </fieldset>
-      <div class="actions"><button class="btn" type="button" id="ncCrear">Crear cartera</button></div>
+      <div class="actions"><button class="btn" id="ncCrear" type="submit">Crear cartera</button></div>
       <p class="err-msg" id="ncErr" hidden></p>
-    </div>
+    </form>
   </div>`;
 }
 function wireCarteras(){
@@ -1210,7 +1216,8 @@ function wireCarteras(){
   const si=$('cdSi'); if(si) si.onclick=()=>{const id=borrarCart;store.movs=store.movs.filter(m=>m.cartera!==id);store.carteras=store.carteras.filter(c=>c.id!==id);
     if(store.activa===id||(store.activa==='todas'&&store.carteras.length<2))store.activa=store.carteras[0].id;borrarCart=null;guardar();render();toast('Cartera eliminada');};
   const no=$('cdNo'); if(no) no.onclick=()=>{borrarCart=null;render();};
-  const cr=$('ncCrear'); if(cr) cr.onclick=()=>{const n=$('ncNom').value.trim().slice(0,40);const err=$('ncErr');
+  const be=document.querySelector('[data-empezar]'); if(be) be.onclick=()=>{empezar();tab='copia';render();};
+  const cr=$('ncForm'); if(cr) cr.onsubmit=e=>{e.preventDefault();const n=$('ncNom').value.trim().slice(0,40);const err=$('ncErr');
     if(!n){err.textContent='Escribe un nombre para la cartera.';err.hidden=false;return;}
     if(store.carteras.some(c=>c.nombre.toLowerCase()===n.toLowerCase())){err.textContent='Ya tienes una cartera con ese nombre.';err.hidden=false;return;}
     const f=($('ncF2')&&$('ncF2').checked)?'independiente':'conjunto';
@@ -1479,7 +1486,7 @@ function kpi(t,v,s,c){return `<div class="kpi"><h3>${t}</h3><div class="v ${c||'
 
 function renderResumen(R,hoy){
   const el=$('v-resumen');
-  if(!state.movs.length){el.innerHTML=`<div class="panel empty">Aún no hay movimientos. Ve a <b>Movimientos</b> y registra tu primera compra.</div>`;return;}
+  if(!state.movs.length){el.innerHTML=`<div class="panel empty">${store.carteras.length>1&&store.activa!=='todas'?`La cartera <b>«${esc((carteraDe(store.activa)||{}).nombre||'')}»</b> está creada y todavía no tiene movimientos. Registra el primero en <b>Movimientos</b>, o pulsa <b>Todas</b> arriba para ver tus carteras juntas.`:'Aún no hay movimientos. Ve a <b>Movimientos</b> y registra tu primera compra.'}</div>`;return;}
   const pctTotal = R.totalCompras>0? R.total/R.totalCompras : NaN;
   const pctCapMedio = R.capitalMedio>0? R.total/R.capitalMedio : NaN;
   const alerts=[];
