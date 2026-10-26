@@ -327,6 +327,14 @@ body.oculto .fi-graf,body.oculto .fi-box .cv-sum{filter:blur(7px)}
 .imp-dest{margin-top:6px}
 .chip.err{background:var(--loss-soft);color:var(--loss)}
 .chip.letra,.chip.letra_venta{background:var(--accent-soft);color:var(--accent)}
+.car-acc{display:flex;flex-direction:column;gap:16px}
+.car-seg{align-self:flex-start}
+.rep-bar{height:12px;margin:8px 0 4px}
+.let-cards{display:flex;flex-direction:column;gap:10px}
+.let-card{grid-template-columns:minmax(0,1fr) auto}
+.let-prog{height:6px;background:var(--sunk);border-radius:3px;overflow:hidden;margin-top:4px}
+.let-prog span{display:block;height:100%;background:var(--warn)}
+body.oculto .rep-bar,body.oculto .let-prog{filter:blur(5px)}
 
 /* v2.0: bloqueo con código */
 body.bloqueado .wrap{display:none!important}
@@ -375,7 +383,7 @@ body.bloqueado .wrap{display:none!important}
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '2.6 · 26/10/2026 · MSM';
+const APP_VERSION = '2.7 · 26/10/2026 · MSM';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
 /* Resto del Mercado Continuo con precio en Google Finance (comprobado el 26/10/2026). No incluye BME Growth ni
    empresas suspendidas o sin datos en Google (Urbar, Minerales y Productos Derivados, Digi, Cleop, Nyesa, Urbas, CAM). */
@@ -1575,6 +1583,53 @@ function opcionesLotesLetras(sel){ const R=calcular(state.movs,state.precios,tod
   return Object.entries(g).map(([id,n])=>`<option value="${esc(id)}" ${id===sel?'selected':''}>Vence el ${fmtD(id.slice(3))} · ${NUM.format(n)} letra${n===1?'':'s'}</option>`).join(''); }
 function sumarSemanas(f,w){ const d=new Date(parseD(f)+w*7*86400000); return d.toISOString().slice(0,10); }
 
+/* =====================================================================================
+   v2.7 · Pestaña Cartera: Acciones | Letras | Todo
+   ===================================================================================== */
+let carSeg='todo'; try{ carSeg=localStorage.getItem('cartera-seg')||'todo'; }catch(e){}
+function segCartera(){ return `<div class="seg car-seg" role="group" aria-label="Qué ver">${[['acciones','Acciones'],['letras','Letras'],['todo','Todo']].map(([k,l])=>`<button type="button" data-carseg="${k}" aria-pressed="${carSeg===k}">${l}</button>`).join('')}</div>`; }
+function wireCarSeg(){ document.querySelectorAll('[data-carseg]').forEach(b=>b.onclick=()=>{ carSeg=b.dataset.carseg; try{localStorage.setItem('cartera-seg',carSeg);}catch(e){} render(); }); 
+  const bl=$('btnNuevaLetra'); if(bl) bl.onclick=()=>{ tipoForm='letra'; editId=null; prefill=null; borrarId=null; tab='movimientos'; render(); window.scrollTo({top:0,behavior:'smooth'}); }; }
+function repartoCartera(R){
+  const acc=R.mercado, let_=R.letras?R.letras.valorHoy:0, tot=acc+let_;
+  if(tot<=0) return '';
+  const pa=acc/tot, pl=let_/tot;
+  return `<div class="panel">
+    <div class="cv-head"><h2>Tu patrimonio invertido</h2><span class="muted" style="font-size:.8rem">valor hoy</span></div>
+    <div class="cv-sum">
+      <div><span class="k">Acciones</span><span class="v">${eur(acc)}</span><span class="s muted">${oculto?'':PCT.format(pa)}</span></div>
+      <div><span class="k">Letras del Tesoro</span><span class="v">${eur(let_)}</span><span class="s muted">${oculto?'':PCT.format(pl)}</span></div>
+      <div><span class="k">Total</span><span class="v">${eur(tot)}</span><span class="s muted">acciones + letras</span></div>
+    </div>
+    <div class="mk-bar rep-bar" role="img" aria-label="Reparto: acciones ${PCT.format(pa)}, letras ${PCT.format(pl)}"><span style="width:${(pa*100).toFixed(1)}%;background:var(--accent)"></span><span style="width:${(pl*100).toFixed(1)}%;background:var(--warn)"></span></div>
+    <div class="cv-leg"><span><i style="background:var(--accent)"></i>Acciones (renta variable)</span><span><i style="background:var(--warn)"></i>Letras del Tesoro (renta fija a corto plazo)</span></div>
+  </div>`;
+}
+function panelLetrasCartera(R){
+  const L=R.letras, hoy=todayStr();
+  const boton='<button class="btn small" type="button" id="btnNuevaLetra">Registrar Letras</button>';
+  if(!L||(!L.vivas.length&&!L.liq.length)) return `<div class="panel"><div class="cv-head"><h2>Letras del Tesoro</h2>${boton}</div><p class="note">Aún no tienes Letras del Tesoro en esta vista. Regístralas con los datos del resguardo del Tesoro: la app calcula el vencimiento, la TAE y lo que cobrarás.</p></div>`;
+  const vivas=L.vivas.map(v=>{ const pasado=Math.min(1,Math.max(0,days(v.fecha,hoy)/Math.max(1,days(v.fecha,v.venc))));
+    return `<div class="card let-card">
+      <div><b>Vence el ${fmtD(v.venc)}</b>${v.diasRest<=30?' <span class="chip warn">en '+v.diasRest+' días</span>':''}<div class="meta">${NUM.format(v.n)} letra${v.n===1?'':'s'} · compradas el ${fmtD(v.fecha)} a ${EUR40.format(v.mov.precio)} %</div><div class="meta">TAE ${oculto?'•••':PCT.format(v.tae)} · faltan ${v.diasRest} días</div></div>
+      <div class="r"><div>${eur(v.valorHoy)}</div><div class="pos">${sgn(v.valorHoy-v.coste)}</div><div class="meta">cobrarás ${eur(v.nominal)}</div></div>
+      <div class="full let-prog" role="img" aria-label="Plazo transcurrido ${Math.round(pasado*100)} %"><span style="width:${(pasado*100).toFixed(1)}%"></span></div>
+      <div class="full meta">Pagaste ${eur(v.coste)} · rendimiento al vencer ${sgn(v.rend)} (tributa en ${v.venc.slice(0,4)})${v.mov.nota?' · '+esc(v.mov.nota):''}</div>
+    </div>`; }).join('');
+  const liq=L.liq.slice().reverse().map(x=>`<div class="mk-row"><div class="nm"><span class="full">${x.tipo==='venta'?'Vendidas':'Amortizadas'} el ${fmtD(x.fecha)}</span><small style="white-space:normal">${NUM.format(x.n)} letra${x.n===1?'':'s'} compradas el ${fmtD(x.fechaCompra)} · cobrado ${eur(x.transm)} · tributa en ${x.fecha.slice(0,4)}</small></div><div class="px"><div class="${cls(x.rend)}">${sgn(x.rend)}</div></div><span></span></div>`).join('');
+  return `<div class="panel">
+    <div class="cv-head"><h2>Letras del Tesoro</h2>${boton}</div>
+    <div class="cv-sum">
+      <div><span class="k">Invertido ahora</span><span class="v">${eur(L.coste)}</span><span class="s muted">${L.vivas.length} vencimiento${L.vivas.length===1?'':'s'} vivo${L.vivas.length===1?'':'s'}</span></div>
+      <div><span class="k">Vale hoy</span><span class="v">${eur(L.valorHoy)}</span><span class="s pos">${sgn(L.devengado)} acumulado</span></div>
+      <div><span class="k">Cobrarás al vencer</span><span class="v">${eur(L.nominal)}</span><span class="s muted">rendimiento ${sgn(L.nominal-L.coste)}</span></div>
+    </div>
+    ${L.vivas.length?`<h3 class="rw-h">Vivas</h3><div class="cards let-cards">${vivas}</div>`:'<p class="note">No tienes Letras vivas ahora mismo.</p>'}
+    ${L.liq.length?`<h3 class="rw-h">Ya cobradas o vendidas</h3><div class="mk-list">${liq}</div><p class="note">Rendimiento total cobrado: <b class="${cls(L.cobrado)}">${sgn(L.cobrado)}</b>. Cada operación tributa en el año en que venció o se vendió.</p>`:''}
+    <p class="note">«Vale hoy» reparte el rendimiento a lo largo del plazo: es un valor teórico, no una cotización. Al vencer, la app da cada letra por cobrada a 1.000 €.</p>
+  </div>`;
+}
+
 const IDXKEY='cartera-indice', HPKEY='cartera-hprecios';
 let idxEstado='', reintentoT=null;
 function reintentarPronto(){ if(reintentoT) return; reintentoT=setTimeout(()=>{ reintentoT=null; actualizarPrecios(true); }, 60000); }
@@ -1933,7 +1988,7 @@ function render(){
   $('valores').innerHTML = vals.map(v=>`<option value="${esc(v)}"></option>`).join('');
   if(tab==='resumen') renderResumen(R,hoy);
   if(tab==='movimientos') renderMovs(R);
-  if(tab==='cartera'){ renderCartera(R,hoy); wireAnalisis(); wireFichas($('v-cartera')); }
+  if(tab==='cartera'){ renderCartera(R,hoy); wireAnalisis(); wireFichas($('v-cartera')); wireCarSeg(); }
   if(tab==='mercado') renderMercado(R,hoy);
   if(tab==='fiscal') renderFiscal(calcular(movsFiscales(),store.precios,hoy),hoy);
   if(tab==='copia'){ renderCopia(); wireCarteras(); wireImportar(); }
@@ -2274,6 +2329,10 @@ function renderCartera(R,hoy){
   const tot={coste:P.reduce((s,p)=>s+p.coste,0),merc:P.reduce((s,p)=>s+(isFinite(p.mercado)?p.mercado:0),0),lat:P.reduce((s,p)=>s+(isFinite(p.latente)?p.latente:0),0),div:P.reduce((s,p)=>s+p.divVal,0)};
   el.innerHTML = `
   <div style="display:flex;flex-direction:column;gap:16px">
+  ${segCartera()}
+  ${carSeg==='todo'?repartoCartera(R):''}
+  ${carSeg==='letras'?panelLetrasCartera(R):''}
+  <div class="car-acc" ${carSeg==='letras'?'hidden':''}>
   <div class="toolbar"><h2>Posiciones abiertas</h2>
     ${ajustes.csvUrl?`<div class="actions"><span class="muted" style="font-size:.82rem">${ajustes.ultimaAct?'Precios de las '+new Date(ajustes.ultimaAct).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' · retraso aprox. 15 min':'Sin actualizar todavía'}</span><button class="btn small" id="bAct" ${cargandoPrecios||demo?'disabled':''}>${cargandoPrecios?'Actualizando…':'Actualizar precios'}</button></div>`:`<button class="btn ghost small" id="bConf">Conectar precios automáticos</button>`}</div>
   ${errPrecios?`<p class="err-msg">${esc(errPrecios)}</p>`:''}
@@ -2303,6 +2362,8 @@ function renderCartera(R,hoy){
   <p class="note">"Dividendos" es lo cobrado en bruto por cada valor desde el inicio. "Tiempo medio" es la antigüedad media de los títulos que conservas, ponderada por coste.</p>
   ${panelAnalisis(R)}
   ${panelCerrados(R)}
+  </div>
+  ${carSeg==='todo'?panelLetrasCartera(R):''}
   </div>`;
   const ba=$('bAct'); if(ba) ba.onclick=()=>actualizarPrecios(false);
   const bf=$('bConf'); if(bf) bf.onclick=()=>{tab='copia';render();};
