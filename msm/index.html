@@ -374,11 +374,16 @@ body.bloqueado .wrap{display:none!important}
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '2.4 · 21/10/2026 · MSM';
+const APP_VERSION = '2.5 · 26/10/2026 · MSM';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
-const NOMBRES = Object.fromEntries(IBEX35);
+/* Resto del Mercado Continuo con precio en Google Finance (comprobado el 26/10/2026). No incluye BME Growth ni
+   empresas suspendidas o sin datos en Google (Urbar, Minerales y Productos Derivados, Digi, Cleop, Nyesa, Urbas, CAM). */
+const CONTINUO = [["ADZ","Adolfo Domínguez"],["AEDAS","Aedas Homes"],["AIR","Airbus"],["AI","Airtificial"],["ALNT","Alantra"],["ALM","Almirall"],["AMP","Amper"],["EAT","AmRest"],["APAM","Aperam"],["ARM","Arima Real Estate"],["ART","Arteche"],["A3M","Atresmedia"],["ATRY","Atrys Health"],["ADX","Audax Renovables"],["AZK","Azkoyen"],["BKY","Berkeley Energía"],["RIO","Bodegas Riojanas"],["CMO","Cementos Molins"],["CEV","Cevasa"],["CIE","CIE Automotive"],["CIRSA","Cirsa"],["CBAV","Clínica Baviera"],["CCEP","Coca-Cola Europacific Partners"],["CAF","CAF (Construcciones y Auxiliar de Ferrocarriles)"],["COXG","Cox"],["OLE","Deoleo"],["DESA","Desa"],["DIA","DIA"],["MDF","Duro Felguera"],["EBRO","Ebro Foods"],["ENER","Ecoener"],["EDR","eDreams ODIGEO"],["ENO","Elecnor"],["ENC","Ence"],["FAE","Faes Farma"],["FCC","FCC"],["GAM","GAM (General de Alquiler de Maquinaria)"],["GEST","Gestamp"],["DOM","Dominion"],["GRE","Grenergy"],["GRF.P","Grifols B"],["GSJ","Grupo San José"],["EZE","Ezentis"],["HBX","HBX Group"],["IBG","Iberpapel"],["ISUR","Grupo Insur (Inmobiliaria del Sur)"],["IMC","Inmocemento"],["ISE","Innovative Solutions Ecosystem"],["IZER","Izertis"],["RJF","Reig Jofre"],["LIB","Libertas 7"],["LDA","Línea Directa"],["LGT","Lingotes Especiales"],["MEL","Meliá Hotels"],["MVC","Metrovacesa"],["MFEA","MFE-MediaForEurope"],["MCM","Miquel y Costas"],["MTB","Montebalito"],["NTH","Naturhouse"],["HOME","Neinor Homes"],["NEA","Nicolás Correa"],["NXT","Nextil"],["OHLA","OHLA (Obrascón Huarte Lain)"],["ORY","Oryzon Genomics"],["PVA","Pescanova"],["PHM","PharmaMar"],["PRM","Prim"],["PRS","Prisa"],["PSG","Prosegur"],["CASH","Prosegur Cash"],["RLIA","Realia"],["R4","Renta 4 Banco"],["REN","Renta Corporación"],["SOL","Soltec"],["SQRL","Squirrel Media"],["TLGO","Talgo"],["TRE","Técnicas Reunidas"],["TUB","Tubacex"],["TRG","Tubos Reunidos"],["VID","Vidrala"],["VIS","Viscofan"],["VOC","Vocento"],["TSK","TSK"],["TRH","TR Hotel Jardín del Mar"]];
+const MERCADO = IBEX35.concat(CONTINUO);
+const EN_IBEX = new Set(IBEX35.map(x=>x[0]));
+const NOMBRES = Object.fromEntries(MERCADO);
 const nombre = t => NOMBRES[t] || '';
-let mkOrden='az', mkQ='', prefill=null;
+let mkOrden='az', mkQ='', prefill=null, mkSeg='todos';
 /* ---------- Utilidades ---------- */
 const EUR = new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:'always'});
 const EUR40 = new Intl.NumberFormat('es-ES',{minimumFractionDigits:2,maximumFractionDigits:4});
@@ -599,6 +604,17 @@ const SECTOR={SAN:'Banca',BBVA:'Banca',CABK:'Banca',SAB:'Banca',BKT:'Banca',UNI:
   TEF:'Telecomunicaciones',CLNX:'Telecomunicaciones',IDR:'Tecnología y defensa',
   ITX:'Consumo y distribución',PUIG:'Consumo y distribución',LOG:'Consumo y distribución',
   GRF:'Salud',ROVI:'Salud',COL:'Inmobiliario',MRL:'Inmobiliario'};
+Object.assign(SECTOR,{R4:'Servicios financieros',ALNT:'Servicios financieros',LDA:'Seguros',
+  ADX:'Renovables',GRE:'Renovables',ENER:'Renovables',SOL:'Renovables',COXG:'Renovables',
+  FCC:'Construcción e infraestructuras',OHLA:'Construcción e infraestructuras',GSJ:'Construcción e infraestructuras',IMC:'Construcción e infraestructuras',ENO:'Construcción e infraestructuras',TRE:'Construcción e infraestructuras',TSK:'Construcción e infraestructuras',
+  APAM:'Industria y materiales',TUB:'Industria y materiales',TRG:'Industria y materiales',CIE:'Industria y materiales',GEST:'Industria y materiales',CAF:'Industria y materiales',TLGO:'Industria y materiales',ART:'Industria y materiales',AZK:'Industria y materiales',LGT:'Industria y materiales',NEA:'Industria y materiales',MDF:'Industria y materiales',AIR:'Industria y materiales',ENC:'Industria y materiales',IBG:'Industria y materiales',MCM:'Industria y materiales',VID:'Industria y materiales',BKY:'Industria y materiales',CMO:'Industria y materiales',GAM:'Industria y materiales',AI:'Industria y materiales',DESA:'Industria y materiales',DOM:'Industria y materiales',
+  MEL:'Transporte y turismo',EDR:'Transporte y turismo',HBX:'Transporte y turismo',TRH:'Transporte y turismo',
+  A3M:'Medios de comunicación',MFEA:'Medios de comunicación',PRS:'Medios de comunicación',VOC:'Medios de comunicación',SQRL:'Medios de comunicación',
+  AMP:'Tecnología y defensa',IZER:'Tecnología y defensa',ISE:'Tecnología y defensa',EZE:'Telecomunicaciones',
+  ADZ:'Consumo y distribución',DIA:'Consumo y distribución',EBRO:'Consumo y distribución',OLE:'Consumo y distribución',CCEP:'Consumo y distribución',VIS:'Consumo y distribución',NTH:'Consumo y distribución',RIO:'Consumo y distribución',PVA:'Consumo y distribución',EAT:'Consumo y distribución',CIRSA:'Consumo y distribución',
+  PSG:'Servicios',CASH:'Servicios',
+  ALM:'Salud',FAE:'Salud',PHM:'Salud',ORY:'Salud',RJF:'Salud',ATRY:'Salud',CBAV:'Salud',PRM:'Salud','GRF.P':'Salud',
+  AEDAS:'Inmobiliario',ARM:'Inmobiliario',CEV:'Inmobiliario',ISUR:'Inmobiliario',LIB:'Inmobiliario',MVC:'Inmobiliario',MTB:'Inmobiliario',HOME:'Inmobiliario',RLIA:'Inmobiliario',REN:'Inmobiliario'});
 const sectorDe=t=>SECTOR[t]||'Otros';
 function limites(){ const l=store.limites||{}; return {valor:l.valor>0?l.valor:25, sector:l.sector>0?l.sector:40}; }
 function analisis(R){
@@ -1046,9 +1062,9 @@ function wireCopiar(root){
    cierre semanales de Google Finance (columnas J en adelante de la hoja de precios). */
 let histPrecios={}; // ticker -> [[aaaa-mm-dd, cierre]] ascendente
 function fechaHist(s){ s=String(s||'').trim(); if(/^\d{4,6}([.,]\d+)?$/.test(s)){ const n=Math.floor(Number(s.replace(',','.'))); const d=new Date(Date.UTC(1899,11,30)+n*86400000); return d.toISOString().slice(0,10); } return parseFechaCSV(s); }
-function leerHistPrecios(filas){
+function leerHistPrecios(filas,k0){
   const cab=filas[0]||[], out={};
-  for(let k=9;k<cab.length-1;k++){
+  for(let k=(k0==null?9:k0);k<cab.length-1;k++){
     const t=String(cab[k]||'').trim().toUpperCase(), c2=String(cab[k+1]||'').trim().toLowerCase();
     if(!/^[A-Z][A-Z0-9.]{0,7}$/.test(t)||(c2!=='close'&&c2!=='sin datos')) continue;
     const serie=[]; for(let r=1;r<filas.length;r++){ const f=filas[r]; const d=fechaHist(f[k]); const c=numCSV(f[k+1]); if(d&&c>0) serie.push([d,c]); }
@@ -1281,7 +1297,7 @@ function tipoImp(s){ const t=nrm(s);
   if(/dividend|cupon|reparto|prima/.test(t)) return 'dividendo';
   return ''; }
 const IMP_GEN=new Set(['banco','grupo','group','sa','s','a','corporacion','compania','cia','de','del','la','el','los','las','y','e','internacional','international','holding','holdings','sociedad','inc','plc','nv','se','ag','ord','ordinarias','acciones','accion','espana','spain','sme','socimi']);
-const IMP_ALIAS={'industria de diseno textil':'ITX','international consolidated airlines':'IAG','red electrica':'RED','gas natural':'NTGY','arcelor':'MTS','laboratorios rovi':'ROVI','rovi':'ROVI','bbva':'BBVA','banco bilbao vizcaya':'BBVA','caixabank':'CABK','merlin':'MRL','colonial':'COL','acs':'ACS'};
+const IMP_ALIAS={'renta corporacion':'REN','arima':'ARM','grifols b':'GRF.P','grifols clase b':'GRF.P','coca cola':'CCEP','mediaset':'MFEA','mediaforeurope':'MFEA','construcciones y auxiliar':'CAF','fomento de construcciones':'FCC','general de alquiler':'GAM','distribuidora internacional':'DIA','obrascon':'OHLA','pharma mar':'PHM','global dominion':'DOM','inmobiliaria del sur':'ISUR','laboratorio reig':'RJF','laboratorios reig':'RJF','promotora de informaciones':'PRS','nueva expresion textil':'NXT','dogi':'NXT','renta 4':'R4','melia':'MEL','tr hotel':'TRH','tecnicas reunidas':'TRE','compania espanola de viviendas':'CEV','desarrollos especiales':'DESA','aedas':'AEDAS','neinor':'HOME','industria de diseno textil':'ITX','international consolidated airlines':'IAG','red electrica':'RED','gas natural':'NTGY','arcelor':'MTS','laboratorios rovi':'ROVI','rovi':'ROVI','bbva':'BBVA','banco bilbao vizcaya':'BBVA','caixabank':'CABK','merlin':'MRL','colonial':'COL','acs':'ACS'};
 function impToks(x){ return nrm(x).replace(/[^a-z0-9 ]/g,' ').split(' ').filter(w=>w&&!IMP_GEN.has(w)); }
 function valorImp(s){
   const raw=String(s??'').trim(); if(!raw) return {t:'',ok:false};
@@ -1804,6 +1820,14 @@ async function actualizarPrecios(silencioso){
     else { idxEstado = /cargando|loading/i.test(String((filas[0]||[])[4]||'')+String((filas[0]||[])[7]||'')) ? 'cargando' : 'falta'; if(idxEstado==='cargando') reintentarPronto(); }
     /* Cierres semanales de cada valor (columnas J en adelante) para reconstruir la gráfica de evolución */
     const hp=leerHistPrecios(filas); if(Object.keys(hp).length){ histPrecios=hp; try{localStorage.setItem(HPKEY,JSON.stringify(hp));}catch(e){} }
+    /* Histórico semanal en otra pestaña de la hoja (celda D1 = «hist:<gid>»): se descarga como mucho una vez al día */
+    const gidF=filas.find(f=>/^hist:\d+$/.test(String(f[3]||'').trim()));
+    if(gidF){ const gid=String(gidF[3]).trim().slice(5); const edad=ajustes.histAct?Date.now()-Date.parse(ajustes.histAct):Infinity;
+      if(edad>20*3600*1000||!Object.keys(histPrecios).length){ try{
+        const u=new URL(ajustes.csvUrl); u.searchParams.set('gid',gid); u.searchParams.set('single','true'); u.searchParams.set('output','csv'); u.searchParams.set('_',Date.now());
+        const rh=await fetch(u.toString(),{cache:'no-store'}); if(rh.ok){ const h2=leerHistPrecios(parseCSV(await rh.text()),0);
+          if(Object.keys(h2).length>=5){ histPrecios=h2; ajustes.histAct=new Date().toISOString(); try{localStorage.setItem(HPKEY,JSON.stringify(h2));}catch(e){} } }
+      }catch(e){} } }
     ajustes.ultimaAct=new Date().toISOString(); guardarAjustes(); guardar(); registrarHistorial();
     if(!silencioso) toast(n+' precios actualizados');
   }catch(e){
@@ -2178,7 +2202,7 @@ function renderCartera(R,hoy){
 function renderMercado(R,hoy){
   const el=$('v-mercado');
   const mios=new Set(R.posiciones.map(p=>p.valor));
-  const filas=IBEX35.map(([t,n])=>{const x=state.precios[t];return {t,n,p:x&&x.p>0?x.p:NaN,v:x&&x.v!=null&&isFinite(x.v)?x.v:NaN,f:x?x.f:'',mio:!oculto&&mios.has(t)};});
+  const filas=MERCADO.filter(([t])=>mkSeg==='todos'||(mkSeg==='ibex')===EN_IBEX.has(t)).map(([t,n])=>{const x=state.precios[t];return {t,n,p:x&&x.p>0?x.p:NaN,v:x&&x.v!=null&&isFinite(x.v)?x.v:NaN,f:x?x.f:'',mio:!oculto&&mios.has(t),ibex:EN_IBEX.has(t)};});
   const conPrecio=filas.filter(f=>isFinite(f.p)).length;
   const conVar=filas.filter(f=>isFinite(f.v));
   const suben=conVar.filter(f=>f.v>0.0001).length, bajan=conVar.filter(f=>f.v<-0.0001).length, igual=conVar.length-suben-bajan;
@@ -2190,13 +2214,13 @@ function renderMercado(R,hoy){
   const pctV=v=>isFinite(v)?(v>0?'+':'')+NUM0.format(Math.round(v*100)/100)+' %':'—';
   el.innerHTML=`
   <div style="display:flex;flex-direction:column;gap:14px">
-    <div class="mk-head"><div><h2>IBEX 35</h2><p class="note">${ajustes.ultimaAct?'Precios de las '+new Date(ajustes.ultimaAct).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' · retraso aprox. 15–20 min':'Sin precios todavía'}</p></div><div class="actions">${ajustes.csvUrl?`<button class="btn small" id="mkAct" ${cargandoPrecios||demo?'disabled':''}>${cargandoPrecios?'Actualizando…':'Actualizar precios'}</button>`:`<button class="btn ghost small" id="mkConf">Conectar precios automáticos</button>`}</div></div>
+    <div class="mk-head"><div><h2>Bolsa española</h2><p class="note">${ajustes.ultimaAct?'Precios de las '+new Date(ajustes.ultimaAct).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+' · retraso aprox. 15–20 min':'Sin precios todavía'}</p></div><div class="actions">${ajustes.csvUrl?`<button class="btn small" id="mkAct" ${cargandoPrecios||demo?'disabled':''}>${cargandoPrecios?'Actualizando…':'Actualizar precios'}</button>`:`<button class="btn ghost small" id="mkConf">Conectar precios automáticos</button>`}</div></div>
     ${errPreciosMk()}
     ${panelObjetivos()}
     ${panelPrevision(R,hoy)}
     ${panelCalendario(R,hoy)}
     <details class="panel fold" data-fold="acc" ${fold.acc?'open':''}>
-    <summary><span class="fold-t">Cotizaciones del IBEX 35</span><span class="fold-s">${conVar.length?`<span class="pos">${suben} suben</span> · <span class="${bajan?'neg':''}">${bajan} bajan</span>`:'35 valores'}</span></summary>
+    <summary><span class="fold-t">Cotizaciones · Mercado Continuo</span><span class="fold-s">${conVar.length?`<span class="pos">${suben} suben</span> · <span class="${bajan?'neg':''}">${bajan} bajan</span>`:filas.length+' valores'}</span></summary>
     <div class="fold-b">
     ${conPrecio?`
     <div style="display:flex;flex-direction:column;gap:10px">
@@ -2206,22 +2230,23 @@ function renderMercado(R,hoy){
         <div><span class="k">Media del día</span><span class="v ${cls(media)}">${pctV(media)}</span></div>
       </div>
       ${conVar.length?`<div class="mk-bar" role="img" aria-label="${suben} suben, ${bajan} bajan, ${igual} sin cambios"><span style="width:${(suben/conVar.length*100).toFixed(1)}%;background:var(--gain)"></span><span style="width:${(igual/conVar.length*100).toFixed(1)}%;background:var(--muted)"></span><span style="width:${(bajan/conVar.length*100).toFixed(1)}%;background:var(--loss)"></span></div>`:''}
-      <p class="note">«Media del día» es la media simple de la variación de los 35 valores. No es el índice IBEX 35, que pondera cada empresa por su tamaño; Google no ofrece el índice para hojas de cálculo.</p>
-    </div>`:`<div class="panel empty">Conecta los precios automáticos en <b>Ajustes</b> para ver aquí los 35 valores del IBEX con su precio y variación del día.</div>`}
-    <div class="mk-tools">
+      <p class="note">«Media del día» es la media simple de la variación de los valores de la lista. No es el índice IBEX 35, que pondera cada empresa por su tamaño; Google no ofrece el índice para hojas de cálculo.</p>
+    </div>`:`<div class="panel empty">Conecta los precios automáticos en <b>Ajustes</b> para ver aquí las empresas de la bolsa española con su precio y variación del día.</div>`}
+    <div class="mk-tools"><div class="seg" role="group" aria-label="Qué empresas ver">${[['todos','Todas'],['ibex','IBEX 35'],['resto','Resto']].map(([k,l])=>`<button type="button" data-seg="${k}" aria-pressed="${mkSeg===k}">${l}</button>`).join('')}</div>
       <input id="mkQ" type="search" placeholder="Buscar valor o empresa" value="${esc(mkQ)}" autocomplete="off">
       <div class="seg" role="group" aria-label="Ordenar">${[['az','A-Z'],['suben','Más suben'],['bajan','Más bajan']].map(([k,l])=>`<button type="button" data-ord="${k}" aria-pressed="${mkOrden===k}">${l}</button>`).join('')}</div>
     </div>
     <div class="mk-list">${lista.length?lista.map(f=>`<div class="mk-row${f.mio?' mine':''}">
-      <div class="nm"><span class="full">${esc(f.n)}</span>${f.mio?' <span class="chip mine">En cartera</span>':''}<small>${esc(f.t)} · BME</small></div>
+      <div class="nm"><span class="full">${esc(f.n)}</span>${f.mio?' <span class="chip mine">En cartera</span>':''}<small>${esc(f.t)} · BME${f.ibex?' · IBEX 35':''}</small></div>
       <div class="px"><div>${isFinite(f.p)?EUR40.format(f.p)+' €':'—'}</div><div class="d ${cls(f.v)}">${pctV(f.v)}</div></div>
       <button class="btn ghost small" data-reg="${esc(f.t)}" aria-label="Registrar operación de ${esc(f.n)}">Registrar</button>
     </div>`).join(''):'<div class="empty">Ningún valor coincide con la búsqueda.</div>'}</div>
-    <p class="note">Composición del IBEX 35 a octubre de 2026. «Registrar» abre el formulario de movimiento con el valor y el precio actual rellenados. Esta app no compra ni vende: opera en tu bróker y anota aquí la operación.</p>
+    <p class="note">Mercado Continuo: 119 empresas (35 del IBEX 35), comprobadas en Google Finance a octubre de 2026. No incluye BME Growth ni empresas suspendidas o sin datos en Google. «Registrar» abre el formulario de movimiento con el valor y el precio actual rellenados. Esta app no compra ni vende: opera en tu bróker y anota aquí la operación.</p>
     </div>
     </details>
   </div>`;
   const q=$('mkQ'); q.oninput=()=>{mkQ=q.value;const pos=q.selectionStart;render();const n=$('mkQ');if(n){n.focus();try{n.setSelectionRange(pos,pos);}catch(e){}}};
+  el.querySelectorAll('[data-seg]').forEach(b=>b.onclick=()=>{mkSeg=b.dataset.seg;render();});
   el.querySelectorAll('[data-ord]').forEach(b=>b.onclick=()=>{mkOrden=b.dataset.ord;render();});
   el.querySelectorAll('[data-reg]').forEach(b=>b.onclick=()=>{const t=b.dataset.reg;const x=state.precios[t];prefill={valor:t,precio:x&&x.p>0?x.p:'',fecha:todayStr()};tipoForm='compra';editId=null;borrarId=null;tab='movimientos';render();window.scrollTo({top:0,behavior:'smooth'});});
   wireCalendario();
