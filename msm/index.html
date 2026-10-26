@@ -383,7 +383,7 @@ body.bloqueado .wrap{display:none!important}
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '2.8 · 26/10/2026 · MSM';
+const APP_VERSION = '2.8.1 · 26/10/2026 · MSM';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
 /* Resto del Mercado Continuo con precio en Google Finance (comprobado el 26/10/2026). No incluye BME Growth ni
    empresas suspendidas o sin datos en Google (Urbar, Minerales y Productos Derivados, Digi, Cleop, Nyesa, Urbas, CAM). */
@@ -2349,7 +2349,7 @@ function renderMovs(R){
       o.bruto=0;o.retencion=0;
     }
     if(demo) empezarSilencioso();
-    if(LETRAS.includes(t)&&!editando&&$('fCartLT')&&$('fCartLT').checked&&!cartLetras()){ const id='c'+uid(); store.carteras.push({id,nombre:'Letras del Tesoro',fiscal:'conjunto'}); o.cartera=id; store.activa=id; }
+    if(LETRAS.includes(t)&&!editando&&$('fCartLT')&&$('fCartLT').checked&&!cartLetras()){ const id='c'+uid(); store.carteras.push({id,nombre:'Letras del Tesoro',fiscal:'conjunto'}); o.cartera=id; if(store.activa!=='todas') store.activa='todas'; }
     if(editando && !demo){Object.assign(state.movs.find(x=>x.id===editId),o);editId=null;toast('Cambios guardados');}
     else {const seq=Math.max(0,...store.movs.map(x=>x.seq||0))+1; store.movs.push(Object.assign({id:uid(),seq},o)); toast(TIPO_TXT[t]+' añadida');}
     editId=null; prefill=null;
