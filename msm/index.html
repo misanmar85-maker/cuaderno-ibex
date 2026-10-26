@@ -383,7 +383,7 @@ body.bloqueado .wrap{display:none!important}
 <script>
 (function(){
 "use strict";
-const APP_VERSION = '2.7 · 26/10/2026 · MSM';
+const APP_VERSION = '2.8 · 26/10/2026 · MSM';
 const IBEX35 = [["ACS", "ACS, Actividades de Construcción y Servicios"], ["ANA", "Acciona"], ["ANE", "Acciona Energía"], ["ACX", "Acerinox"], ["AENA", "Aena"], ["AMS", "Amadeus IT Group"], ["MTS", "ArcelorMittal"], ["BBVA", "BBVA (Banco Bilbao Vizcaya Argentaria)"], ["SAB", "Banco Sabadell"], ["SAN", "Banco Santander"], ["BKT", "Bankinter"], ["CABK", "CaixaBank"], ["CLNX", "Cellnex Telecom"], ["ENG", "Enagás"], ["ELE", "Endesa"], ["FER", "Ferrovial"], ["FDR", "Fluidra"], ["GRF", "Grifols"], ["IAG", "IAG (International Airlines Group)"], ["IBE", "Iberdrola"], ["ITX", "Inditex"], ["IDR", "Indra Sistemas"], ["COL", "Inmobiliaria Colonial"], ["ROVI", "Laboratorios Farmacéuticos Rovi"], ["LOG", "Logista"], ["MAP", "Mapfre"], ["MRL", "Merlin Properties"], ["NTGY", "Naturgy Energy"], ["PUIG", "Puig Brands"], ["RED", "Redeia (Red Eléctrica)"], ["REP", "Repsol"], ["SCYR", "Sacyr"], ["SLR", "Solaria Energía y Medio Ambiente"], ["TEF", "Telefónica"], ["UNI", "Unicaja Banco"]];
 /* Resto del Mercado Continuo con precio en Google Finance (comprobado el 26/10/2026). No incluye BME Growth ni
    empresas suspendidas o sin datos en Google (Urbar, Minerales y Productos Derivados, Digi, Cleop, Nyesa, Urbas, CAM). */
@@ -1589,6 +1589,9 @@ function sumarSemanas(f,w){ const d=new Date(parseD(f)+w*7*86400000); return d.t
 let carSeg='todo'; try{ carSeg=localStorage.getItem('cartera-seg')||'todo'; }catch(e){}
 function segCartera(){ return `<div class="seg car-seg" role="group" aria-label="Qué ver">${[['acciones','Acciones'],['letras','Letras'],['todo','Todo']].map(([k,l])=>`<button type="button" data-carseg="${k}" aria-pressed="${carSeg===k}">${l}</button>`).join('')}</div>`; }
 function wireCarSeg(){ document.querySelectorAll('[data-carseg]').forEach(b=>b.onclick=()=>{ carSeg=b.dataset.carseg; try{localStorage.setItem('cartera-seg',carSeg);}catch(e){} render(); }); 
+  document.querySelectorAll('[data-ics]').forEach(b=>b.onclick=()=>{ const R=calcular(state.movs,state.precios,todayStr()); const k=b.dataset.ics;
+    const sel=k==='todas'?R.letras.vivas:R.letras.vivas.filter(v=>(v.valor+'|'+v.mov.id)===k); if(!sel.length) return;
+    entregarICS(icsTexto(sel), k==='todas'?'vencimientos-letras.ics':'vence-letra-'+sel[0].venc+'.ics'); });
   const bl=$('btnNuevaLetra'); if(bl) bl.onclick=()=>{ tipoForm='letra'; editId=null; prefill=null; borrarId=null; tab='movimientos'; render(); window.scrollTo({top:0,behavior:'smooth'}); }; }
 function repartoCartera(R){
   const acc=R.mercado, let_=R.letras?R.letras.valorHoy:0, tot=acc+let_;
@@ -1615,6 +1618,7 @@ function panelLetrasCartera(R){
       <div class="r"><div>${eur(v.valorHoy)}</div><div class="pos">${sgn(v.valorHoy-v.coste)}</div><div class="meta">cobrarás ${eur(v.nominal)}</div></div>
       <div class="full let-prog" role="img" aria-label="Plazo transcurrido ${Math.round(pasado*100)} %"><span style="width:${(pasado*100).toFixed(1)}%"></span></div>
       <div class="full meta">Pagaste ${eur(v.coste)} · rendimiento al vencer ${sgn(v.rend)} (tributa en ${v.venc.slice(0,4)})${v.mov.nota?' · '+esc(v.mov.nota):''}</div>
+      <div class="full actions" style="justify-content:flex-end"><button class="btn ghost small" type="button" data-ics="${esc(v.valor)}|${esc(v.mov.id)}">Añadir al calendario</button>${/Android/i.test(navigator.userAgent)?`<a class="btn ghost small" href="${googleCalUrl(v)}" target="_blank" rel="noopener">Google Calendar</a>`:''}</div>
     </div>`; }).join('');
   const liq=L.liq.slice().reverse().map(x=>`<div class="mk-row"><div class="nm"><span class="full">${x.tipo==='venta'?'Vendidas':'Amortizadas'} el ${fmtD(x.fecha)}</span><small style="white-space:normal">${NUM.format(x.n)} letra${x.n===1?'':'s'} compradas el ${fmtD(x.fechaCompra)} · cobrado ${eur(x.transm)} · tributa en ${x.fecha.slice(0,4)}</small></div><div class="px"><div class="${cls(x.rend)}">${sgn(x.rend)}</div></div><span></span></div>`).join('');
   return `<div class="panel">
@@ -1624,11 +1628,31 @@ function panelLetrasCartera(R){
       <div><span class="k">Vale hoy</span><span class="v">${eur(L.valorHoy)}</span><span class="s pos">${sgn(L.devengado)} acumulado</span></div>
       <div><span class="k">Cobrarás al vencer</span><span class="v">${eur(L.nominal)}</span><span class="s muted">rendimiento ${sgn(L.nominal-L.coste)}</span></div>
     </div>
-    ${L.vivas.length?`<h3 class="rw-h">Vivas</h3><div class="cards let-cards">${vivas}</div>`:'<p class="note">No tienes Letras vivas ahora mismo.</p>'}
+    ${L.vivas.length?`<h3 class="rw-h">Vivas</h3>${L.vivas.length>1?'<div class="actions"><button class="btn ghost small" type="button" data-ics="todas">Añadir todos los vencimientos al calendario</button></div>':''}<p class="note">El evento se crea el día del vencimiento a las 9:00, con aviso ${ICS_AVISO_DIAS} días antes y otro el mismo día.</p><p class="note" id="icsMsg" aria-live="polite"></p><div class="cards let-cards">${vivas}</div>`:'<p class="note">No tienes Letras vivas ahora mismo.</p>'}
     ${L.liq.length?`<h3 class="rw-h">Ya cobradas o vendidas</h3><div class="mk-list">${liq}</div><p class="note">Rendimiento total cobrado: <b class="${cls(L.cobrado)}">${sgn(L.cobrado)}</b>. Cada operación tributa en el año en que venció o se vendió.</p>`:''}
     <p class="note">«Vale hoy» reparte el rendimiento a lo largo del plazo: es un valor teórico, no una cotización. Al vencer, la app da cada letra por cobrada a 1.000 €.</p>
   </div>`;
 }
+
+/* =====================================================================================
+   v2.8 · Vencimientos de Letras en el calendario del móvil (.ics con aviso 5 días antes)
+   ===================================================================================== */
+const ICS_AVISO_DIAS=5;
+function icsTexto(vivas){
+  const esc_=t=>String(t).replace(/\\/g,'\\\\').replace(/;/g,'\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+  const plegar=l=>{ const out=[]; while(l.length>74){ out.push(l.slice(0,74)); l=' '+l.slice(74); } out.push(l); return out.join('\r\n'); };
+  const ahora=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+Z$/,'Z');
+  const ev=vivas.map(v=>{ const d=v.venc.replace(/-/g,''); const _o=oculto; oculto=false;
+    const desc=`${NUM0.format(v.n)} letra${v.n===1?'':'s'} del Tesoro compradas el ${fmtD(v.fecha)} a ${EUR40.format(v.mov.precio)} %. Cobrarás ${EUR.format(v.nominal)} (rendimiento ${EUR.format(v.rend)}, tributa en ${v.venc.slice(0,4)}, sin retención). Si quieres reinvertir, pídelo en Tesoro Directo antes del plazo de la subasta (calendario en tesoro.es).`;
+    const tit=`Vence Letra del Tesoro · ${EUR.format(v.nominal)}`; oculto=_o;
+    return ['BEGIN:VEVENT',`UID:${v.valor}-${v.mov.id}@cartera-inversiones`,`DTSTAMP:${ahora}`,`DTSTART:${d}T090000`,`DTEND:${d}T093000`,
+      plegar('SUMMARY:'+esc_(tit)),plegar('DESCRIPTION:'+esc_(desc)),'BEGIN:VALARM','ACTION:DISPLAY',plegar('DESCRIPTION:'+esc_('En 5 días vence tu Letra del Tesoro: decide si reinviertes')),`TRIGGER:-P${ICS_AVISO_DIAS}D`,'END:VALARM',
+      'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:Hoy vence tu Letra del Tesoro','TRIGGER:PT0M','END:VALARM','END:VEVENT'].join('\r\n'); });
+  return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Cartera de Inversiones//Letras//ES','CALSCALE:GREGORIAN','METHOD:PUBLISH'].concat(ev).concat(['END:VCALENDAR']).join('\r\n')+'\r\n';
+}
+function googleCalUrl(v){ const d=v.venc.replace(/-/g,''); const _o=oculto; oculto=false;
+  const u='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('Vence Letra del Tesoro · '+EUR.format(v.nominal))+'&dates='+d+'T090000/'+d+'T093000&details='+encodeURIComponent(`${NUM0.format(v.n)} letras compradas el ${fmtD(v.fecha)} a ${EUR40.format(v.mov.precio)} %. Cobrarás ${EUR.format(v.nominal)}. Pon un aviso 5 días antes para decidir si reinviertes.`);
+  oculto=_o; return u; }
 
 const IDXKEY='cartera-indice', HPKEY='cartera-hprecios';
 let idxEstado='', reintentoT=null;
@@ -1638,6 +1662,18 @@ function textoSinIndice(){
   if(idxEstado==='cargando'||(!idxEstado&&!ajustes.ultimaAct)) return 'Google todavía está cargando el histórico del IBEX en tu hoja. La app lo volverá a leer sola en un minuto; no tienes que hacer nada.';
   if(!idxEstado) return 'Cargando el histórico del IBEX desde tu hoja…';
   return 'Tu hoja de precios aún no tiene el histórico del índice. En tu hoja de Google, escribe en la celda <b>E1</b> <code>=GOOGLEFINANCE("BME:LYXIB";"close";DATE(2024;1;1);TODAY();"DAILY")</code>, en <b>G1</b> <code>LYXIB</code> y en <b>H1</b> <code>=GOOGLEFINANCE("BME:LYXIB";"price")</code>. La app lo leerá en la siguiente actualización de precios.';
+}
+function entregarICS(texto,fn){
+  const msg=$('icsMsg');
+  /* iPhone: abrir el calendario como data URL muestra directamente «Añadir al calendario». Android/otros: descarga del .ics */
+  if(/iPhone|iPad|iPod/i.test(navigator.userAgent)){
+    if(msg){ msg.innerHTML='Si no se ha abierto la pantalla «Añadir al calendario», <button class="btn ghost small" type="button" id="icsShare">comparte el archivo</button> y elige Calendario, o ábrelo desde Archivos.';
+      const sh=$('icsShare'); if(sh) sh.onclick=async()=>{ try{ await navigator.share({files:[new File([texto],fn,{type:'text/calendar'})]}); }catch(e){ if(!(e&&e.name==='AbortError')){ const url=URL.createObjectURL(new Blob([texto],{type:'text/calendar'})); const a=document.createElement('a'); a.href=url; a.download=fn; document.body.appendChild(a); a.click(); a.remove(); } } }; }
+    try{ location.href='data:text/calendar;charset=utf-8,'+encodeURIComponent(texto); }catch(e){}
+    return; }
+  const url=URL.createObjectURL(new Blob([texto],{type:'text/calendar;charset=utf-8'})); const a=document.createElement('a'); a.href=url; a.download=fn; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000);
+  if(msg) msg.textContent='Archivo «'+fn+'» descargado: ábrelo desde la notificación de descarga y elige tu calendario. Si tu calendario no guarda el aviso, ponlo a mano al guardar el evento (5 días antes).';
+  toast('Evento de calendario descargado');
 }
 async function exportarPDF(anio){
   const msg=$('xlsMsg'); if(!msg) return;
